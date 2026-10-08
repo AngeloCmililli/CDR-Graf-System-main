@@ -1,0 +1,7 @@
+**/venv/
+**/.env
+**/.env.*
+!**/.env.example
+**/data/*.csv
+__pycache__/
+*.py[cod]

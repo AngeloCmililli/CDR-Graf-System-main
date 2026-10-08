@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html class="h-full bg-slate-50 transition-colors duration-200 dark" lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>Dashboard CDR Asterisk - Monitoreo en tiempo real</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            darkbg: '#0b1120',
+            darkcard: '#131d33',
+            darkborder: '#1e293b'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Font Awesome Icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+
+    .dark ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+
+    .dark ::-webkit-scrollbar-thumb {
+      background: #334155;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    .status-pulse {
+      animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse-ring {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.4;
+        transform: scale(1.15);
+      }
+    }
+
+    .accordion-transition {
+      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease-in-out;
+    }
+
+    .operator-card {
+      transition: all 0.2s ease-in-out;
+    }
+
+    .operator-card.card-selected {
+      border-color: #3b82f6 !important;
+      box-shadow: 0 4px 18px -2px rgba(59, 130, 246, 0.35);
+    }
+
+    .canvas-interactive {
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body
+  class="h-full flex flex-col text-slate-800 dark:text-slate-100 dark:bg-[#090e17] antialiased font-sans overflow-x-hidden transition-colors duration-200">
+
+  <!-- HEADER PRINCIPAL -->
+  <header
+    class="bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 shadow-xs transition-colors duration-200">
+    <div class="px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div
+          class="w-10 h-10 rounded-xl bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-lg shadow-inner">
+          <i class="fa-solid fa-headset"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            Dashboard CDR Asterisk
+            <span
+              class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200 dark:border-blue-800">PBX
+              Core v20.5</span>
+          </h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Monitoreo en tiempo real de llamadas
+            nacionales</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3 sm:space-x-4">
+        <!-- Badge de Filtro Activo -->
+        <div
+          class="hidden items-center gap-2 bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 px-3 py-1 rounded-full text-xs text-blue-800 dark:text-blue-300 font-semibold transition-all"
+          id="headerFilterBadge">
+          <span class="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400"></span>
+          <span>Filtrado: <span class="font-bold underline" id="headerFilterName">Movistar</span></span>
+          <button class="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-200 p-0.5"
+            onclick="clearOperatorFilter()" title="Quitar filtro">
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>
+
+        <!-- Conmutador Tema -->
+        <div
+          class="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1 rounded-full border border-slate-200 dark:border-slate-700 transition-colors shadow-xs">
+          <button
+            class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer focus:outline-none"
+            id="themeToggleBtn" onclick="toggleTheme()" title="Cambiar tema">
+            <span class="w-4 h-4 flex items-center justify-center text-amber-500 dark:text-indigo-400" id="themeIcon">
+              <i class="fa-solid fa-sun"></i>
+            </span>
+            <span class="hidden sm:inline" id="themeLabel">Modo Claro</span>
+          </button>
+        </div>
+
+        <!-- Fecha actual -->
+        <div
+          class="hidden md:flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+          <i class="fa-regular fa-calendar text-slate-400"></i>
+          <span id="current-date">Cargando...</span>
+        </div>
+
+        <!-- Estado Conexión -->
+        <div
+          class="flex items-center bg-slate-50 dark:bg-slate-800/60 p-1 rounded-full border border-slate-200 dark:border-slate-700">
+          <button
+            class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 transition-all shadow-xs"
+            id="statusBadge" onclick="toggleConnection()">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 status-pulse" id="statusDot"></span>
+            <span id="statusText">En Vivo</span>
+          </button>
+        </div>
+
+        <button
+          class="lg:hidden p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+          onclick="toggleMobileSidebar()">
+          <i class="fa-solid fa-tower-broadcast"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex-1 flex overflow-hidden">
+    <!-- MAIN CONTENT AREA -->
+    <main
+      class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 bg-slate-50/70 dark:bg-[#0b1120] transition-colors duration-200">
+
+      <!-- Banner de Filtro Dinámico -->
+      <div
+        class="hidden bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-800 rounded-xl p-3.5 text-white shadow-md items-center justify-between transition-all"
+        id="activeFilterBanner">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white backdrop-blur-xs">
+            <i class="fa-solid fa-filter text-sm"></i>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-wider font-semibold text-blue-100">Filtro Aplicado</p>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>Operadora: <span class="font-extrabold underline decoration-white/50" id="filterBannerName">Movistar
+                  Móvil</span></span>
+              <span class="text-xs font-normal bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-xs"
+                id="filterBannerMeta">4 llamadas</span>
+            </h3>
+          </div>
+        </div>
+        <button
+          class="px-3.5 py-1.5 rounded-lg bg-white text-blue-700 hover:bg-blue-50 font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+          onclick="clearOperatorFilter()">
+          <i class="fa-solid fa-rotate-left"></i> Quitar filtro
+        </button>
+      </div>
+
+      <!-- BANNER KPIs PRINCIPALES -->
+      <section
+        class="bg-white dark:bg-[#111928] rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-5 relative overflow-hidden transition-colors">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div
+            class="text-center sm:text-left flex-1 sm:border-r border-slate-100 dark:border-slate-800/80 pr-0 sm:pr-8">
+            <span class="text-xs font-bold tracking-wider text-slate-500 dark:text-slate-400 uppercase block mb-1"
+              id="kpi-title">
+              TOTAL DE LLAMADAS DIARIAS
+            </span>
+            <div class="flex items-baseline justify-center sm:justify-start gap-3">
+              <span
+                class="text-5xl font-black text-blue-600 dark:text-blue-400 tracking-tight transition-all duration-300"
+                id="total-call-count">15</span>
+              <span
+                class="inline-flex items-center text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800"
+                id="total-call-trend">
+                <i class="fa-solid fa-arrow-trend-up mr-1 text-[10px]"></i> +12% vs ayer
+              </span>
+            </div>
+          </div>
+
+          <div
+            class="grid grid-cols-3 gap-4 w-full sm:w-auto text-center divide-x divide-slate-100 dark:divide-slate-800">
+            <div class="px-4">
+              <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400 mb-0.5">ASR Global</p>
+              <p class="text-xl font-bold text-slate-800 dark:text-slate-100 transition-all duration-300" id="kpi-asr">
+                73.3%</p>
+              <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium" id="kpi-asr-sub">11
+                Respondidas</span>
+            </div>
+            <div class="px-4">
+              <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400 mb-0.5">ACD (Duración)
+              </p>
+              <p class="text-xl font-bold text-slate-800 dark:text-slate-100 transition-all duration-300" id="kpi-acd">
+                03:42</p>
+              <span class="text-[10px] text-slate-500 dark:text-slate-400">Min/llamada</span>
+            </div>
+            <div class="px-4">
+              <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400 mb-0.5">Canales Activos
+              </p>
+              <p class="text-xl font-bold text-blue-600 dark:text-blue-400 transition-all duration-300"
+                id="kpi-channels">4 / 60</p>
+              <span class="text-[10px] text-slate-500 dark:text-slate-400">Troncales SIP</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FILA 1 DE GRÁFICOS -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Gráfico 1: Flujo Horario -->
+        <article
+          class="bg-white dark:bg-[#111928] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 flex flex-col transition-colors">
+          <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h2 class="text-base md:text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                Flujo de Llamadas por Hora
+              </h2>
+              <p class="text-xs text-slate-400 dark:text-slate-400" id="hourlySubtitle">Distribución de tráfico (08:00 -
+                16:00)</p>
+            </div>
+            <span
+              class="text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-md border border-slate-200 dark:border-slate-700">
+              <i class="fa-regular fa-clock text-blue-500 mr-1.5"></i> Tiempo Real
+            </span>
+          </div>
+          <div class="relative h-[340px] md:h-[370px] w-full flex-1">
+            <canvas id="chartHourlyFlow"></canvas>
+          </div>
+        </article>
+
+        <!-- Gráfico 2: Volumen por Operadora -->
+        <article
+          class="bg-white dark:bg-[#111928] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 flex flex-col relative transition-colors">
+          <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h2 class="text-base md:text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                Volumen por Operadora
+                <span
+                  class="text-xs font-normal text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 hidden sm:inline">
+                  <i class="fa-solid fa-arrow-pointer text-[10px] mr-1"></i>Clic para filtrar
+                </span>
+              </h2>
+              <p class="text-xs text-slate-400 dark:text-slate-400">Llamadas procesadas según destino</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                class="hidden text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/60 px-2.5 py-1 rounded-md border border-rose-200 dark:border-rose-900 transition"
+                id="chartResetBtn" onclick="clearOperatorFilter()">
+                <i class="fa-solid fa-xmark mr-1"></i> Limpiar
+              </button>
+              <span
+                class="text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700"
+                id="carrierCountBadge">
+                <i class="fa-solid fa-chart-simple text-emerald-500 mr-1"></i> 5 Destinos
+              </span>
+            </div>
+          </div>
+          <div class="relative h-[340px] md:h-[370px] w-full flex-1">
+            <canvas class="canvas-interactive" id="chartOperatorVolume"></canvas>
+          </div>
+          <div
+            class="pt-2.5 flex items-center justify-between text-xs text-slate-400 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800 mt-2">
+            <span><i class="fa-solid fa-hand-pointer text-blue-500 mr-1"></i> Clic en barra para filtrar</span>
+            <span class="font-medium text-slate-600 dark:text-slate-300" id="chartHelperText">Mostrando todas</span>
+          </div>
+        </article>
+      </section>
+
+      <!-- FILA 2 DE GRÁFICOS Y TABLA DE TRUNKS -->
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Gráfico 3: Donut Estatus CDR -->
+        <article
+          class="lg:col-span-5 bg-white dark:bg-[#111928] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 flex flex-col transition-colors">
+          <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h2 class="text-base md:text-lg font-bold text-slate-800 dark:text-slate-100">Status General CDR</h2>
+              <p class="text-xs text-slate-400 dark:text-slate-400" id="statusSubtitle">Desglose de estados de
+                terminación</p>
+            </div>
+            <span
+              class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">Asterisk
+              Core</span>
+          </div>
+
+          <div class="relative flex-1 flex flex-col items-center justify-center py-3">
+            <div class="h-64 sm:h-72 w-64 sm:w-72 relative flex items-center justify-center">
+              <canvas id="chartCallStatus"></canvas>
+              <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span class="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight"
+                  id="donutTotalCount">15</span>
+                <span class="text-xs uppercase font-bold tracking-wider text-slate-400 mt-0.5">Llamadas</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-5 w-full text-center text-xs">
+              <div
+                class="flex items-center justify-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
+                <span class="w-3 h-3 rounded-full bg-[#3b82f6]"></span>
+                <span class="text-slate-600 dark:text-slate-300 text-[11px]">ANS: <b id="leg-ans"
+                    class="text-slate-900 dark:text-white font-bold ml-0.5">9</b></span>
+              </div>
+              <div
+                class="flex items-center justify-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
+                <span class="w-3 h-3 rounded-full bg-[#10b981]"></span>
+                <span class="text-slate-600 dark:text-slate-300 text-[11px]">NO ANS: <b id="leg-noans"
+                    class="text-slate-900 dark:text-white font-bold ml-0.5">3</b></span>
+              </div>
+              <div
+                class="flex items-center justify-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
+                <span class="w-3 h-3 rounded-full bg-[#f59e0b]"></span>
+                <span class="text-slate-600 dark:text-slate-300 text-[11px]">BUSY: <b id="leg-busy"
+                    class="text-slate-900 dark:text-white font-bold ml-0.5">2</b></span>
+              </div>
+              <div
+                class="flex items-center justify-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
+                <span class="w-3 h-3 rounded-full bg-[#ef4444]"></span>
+                <span class="text-slate-600 dark:text-slate-300 text-[11px]">FAIL: <b id="leg-fail"
+                    class="text-slate-900 dark:text-white font-bold ml-0.5">1</b></span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- Tabla 4: TOP TRUNKS UTILIZADOS -->
+        <article
+          class="lg:col-span-7 bg-white dark:bg-[#111928] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 flex flex-col transition-colors">
+          <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h2 class="text-base md:text-lg font-bold text-slate-800 dark:text-slate-100">TOP TRUNKS UTILIZADOS</h2>
+              <p class="text-xs text-slate-400 dark:text-slate-400" id="trunksSubtitle">Troncales SIP de Entrada y
+                Salida</p>
+            </div>
+            <span
+              class="text-xs font-semibold px-2.5 py-1 bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 rounded-md border border-blue-100 dark:border-blue-900">
+              Canales SIP
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+            <!-- Trunk Entrantes -->
+            <div class="space-y-2">
+              <div
+                class="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider pb-1.5 border-b border-slate-200 dark:border-slate-700">
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-arrow-down-left text-blue-500"></i>
+                  Entrantes</span>
+                <span>Llamadas</span>
+              </div>
+              <ul class="divide-y divide-slate-100 dark:divide-slate-800 text-sm" id="inboundTrunkList">
+                <li
+                  class="py-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 px-2 rounded-lg transition trunk-row"
+                  data-carrier="movistar">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span
+                      class="font-medium text-slate-700 dark:text-slate-200 font-mono text-xs">SIP/INCONCERT_OUT</span>
+                  </div>
+                  <span
+                    class="font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">6</span>
+                </li>
+                <li
+                  class="py-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 px-2 rounded-lg transition trunk-row"
+                  data-carrier="digitel">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span class="font-medium text-slate-700 dark:text-slate-200 font-mono text-xs">SIP/CPA_SIP_2</span>
+                  </div>
+                  <span
+                    class="font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">3</span>
+                </li>
+                <li
+                  class="py-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 px-2 rounded-lg transition trunk-row"
+                  data-carrier="movilnet">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span class="font-medium text-slate-700 dark:text-slate-200 font-mono text-xs">SIP/CPA_SIP_1</span>
+                  </div>
+                  <span
+                    class="font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">3</span>
+                </li>
+                <li
+                  class="py-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 px-2 rounded-lg transition trunk-row"
+                  data-carrier="cantv">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span
+                      class="font-medium text-slate-700 dark:text-slate-200 font-mono text-xs">SIP/ITXINTER0IMG0CCS</span>
+                  </div>
+                  <span
+                    class="font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">2</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Trunk Salientes -->
+            <div class="space-y-2">
+              <div
+                class="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider pb-1.5 border-b border-slate-200 dark:border-slate-700">
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-arrow-up-right text-purple-500"></i>
+                  Salientes</span>
+                <span>Llamadas</span>
+              </div>
+              <ul class="divide-y divide-slate-100 dark:divide-slate-800 text-sm" id="outboundTrunkList">
+                <li
+                  class="py-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 px-2 rounded-lg transition trunk-row"
+                  data-carrier="movistar">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span
+                      class="font-medium text-slate-700 dark:text-slate-200 font-mono text-xs">SIP/ITXINTER0IMG0CCS</span>
+                  </div>
+                  <span
+                    class="font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">5</span>
+                </li>
+                <li
+                  class="py-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 px-2 rounded-lg transition trunk-row"
+                  data-carrier="digitel">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span
+                      class="font-medium text-slate-700 dark:text-slate-200 font-mono text-xs">SIP/ITXINTER0IMG0VAL</span>
+                  </div>
+                  <span
+                    class="font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">4</span>
+                </li>
+                <li
+                  class="py-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 px-2 rounded-lg transition trunk-row"
+                  data-carrier="movilnet">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span
+                      class="font-medium text-slate-700 dark:text-slate-200 font-mono text-xs">SIP/ITXINTER0IMGMCBO</span>
+                  </div>
+                  <span
+                    class="font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">3</span>
+                </li>
+                <li
+                  class="py-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 px-2 rounded-lg transition trunk-row"
+                  data-carrier="cantv">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span
+                      class="font-medium text-slate-700 dark:text-slate-200 font-mono text-xs">SIP/INCONCERT_IN</span>
+                  </div>
+                  <span
+                    class="font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">2</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <!-- SIDEBAR METRICAS DE OPERADORAS -->
+    <aside
+      class="w-80 xl:w-96 bg-white dark:bg-[#0f172a] border-l border-slate-200 dark:border-slate-800 flex flex-col shrink-0 overflow-y-auto transition-all duration-300 lg:translate-x-0 absolute lg:relative right-0 inset-y-0 z-40 shadow-xl lg:shadow-none translate-x-full"
+      id="operatorSidebar">
+      <div
+        class="p-4 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-sm z-10 transition-colors">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center space-x-2">
+            <span
+              class="p-1.5 bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 rounded-lg text-sm border border-blue-200 dark:border-blue-900">
+              <i class="fa-solid fa-tower-broadcast"></i>
+            </span>
+            <div>
+              <h3 class="font-bold text-slate-900 dark:text-white text-sm tracking-tight leading-tight">Métricas de
+                Operadoras</h3>
+              <span class="text-[10px] text-slate-400">Selecciona para filtrar</span>
+            </div>
+          </div>
+          <button class="lg:hidden text-slate-400 hover:text-slate-600 p-1" onclick="toggleMobileSidebar()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div
+          class="grid grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-lg text-xs font-semibold text-center">
+          <button
+            class="py-1 px-2 rounded-md bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs">Hoy</button>
+          <button
+            class="py-1 px-2 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">Semana</button>
+          <button
+            class="py-1 px-2 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> En vivo
+          </button>
+        </div>
+      </div>
+
+      <div class="p-4 space-y-3" id="operatorAccordionGroup">
+        <div
+          class="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2.5 mb-1"
+          id="carrierStatusBadge">
+          <i class="fa-solid fa-circle-check mt-0.5 text-emerald-600 dark:text-emerald-400"></i>
+          <div>
+            <p class="font-semibold">Troncales Operando Normal</p>
+            <p class="text-emerald-700 dark:text-emerald-400 text-[11px] mt-0.5" id="carrierStatusMsg">Sin pérdidas de
+              paquetes en proveedores de telefonía.</p>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <p class="text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 tracking-wider">Detalle por
+            Operador Nacional</p>
+          <div class="flex items-center gap-2">
+            <button class="text-[10px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 transition"
+              id="toggleAllBtn" onclick="toggleAllAccordions()" type="button">
+              Expandir todo
+            </button>
+            <span class="text-slate-300 dark:text-slate-700">|</span>
+            <button class="text-[10px] font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 transition"
+              onclick="clearOperatorFilter()" type="button">
+              Ver todas
+            </button>
+          </div>
+        </div>
+
+        <!-- Tarjeta 1: Movistar -->
+        <div
+          class="operator-card border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden transition-all duration-200 bg-white dark:bg-slate-900/90 shadow-xs cursor-pointer"
+          data-carrier="movistar" onclick="onCardClick('movistar', event)">
+          <div
+            class="w-full text-left p-3.5 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors select-none">
+            <div class="flex items-center space-x-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="font-bold text-xs text-slate-900 dark:text-white leading-tight">Movistar Móvil</h4>
+                  <span
+                    class="filter-indicator-tag hidden text-[9px] bg-blue-600 text-white font-bold px-1.5 py-0.2 rounded">ACTIVA</span>
+                </div>
+                <p class="text-[10px] text-slate-400 font-mono mt-0.5">5 llamadas · 60% Saliente</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2 shrink-0">
+              <span
+                class="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">UP
+                · 18ms</span>
+              <button class="p-1 text-slate-400 hover:text-slate-600 chevron-btn"
+                onclick="toggleAccordionOnly('movistar', event)" type="button">
+                <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200 card-chevron"></i>
+              </button>
+            </div>
+          </div>
+          <div
+            class="card-content hidden px-3.5 pb-3.5 pt-1 border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/30">
+            <div class="grid grid-cols-2 gap-2 text-xs py-2 border-b border-slate-100 dark:border-slate-800 mb-2.5">
+              <div>
+                <span class="text-slate-500 text-[10px] uppercase font-semibold block">Efectividad (ASR)</span>
+                <span class="font-bold text-slate-800 dark:text-slate-100 text-sm">80.0%</span>
+              </div>
+              <div>
+                <span class="text-slate-500 text-[10px] uppercase font-semibold block">Duración Prom.</span>
+                <span class="font-bold text-slate-800 dark:text-slate-100 text-sm">04:12 min</span>
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="flex justify-between text-[11px] text-slate-500">
+                <span>Distribución</span>
+                <span class="font-medium text-slate-700 dark:text-slate-300">60% Sal / 40% Ent</span>
+              </div>
+              <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden flex">
+                <div class="bg-blue-600 h-full" style="width: 60%"></div>
+                <div class="bg-emerald-400 h-full" style="width: 40%"></div>
+              </div>
+            </div>
+            <div class="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex justify-end">
+              <button
+                class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 flex items-center gap-1"
+                onclick="applyOperatorFilter('movistar', event)">
+                <i class="fa-solid fa-filter text-[10px]"></i> Filtrar Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 2: Digitel -->
+        <div
+          class="operator-card border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden transition-all duration-200 bg-white dark:bg-slate-900/90 shadow-xs cursor-pointer"
+          data-carrier="digitel" onclick="onCardClick('digitel', event)">
+          <div
+            class="w-full text-left p-3.5 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors select-none">
+            <div class="flex items-center space-x-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="font-bold text-xs text-slate-900 dark:text-white leading-tight">Digitel Móvil</h4>
+                  <span
+                    class="filter-indicator-tag hidden text-[9px] bg-blue-600 text-white font-bold px-1.5 py-0.2 rounded">ACTIVA</span>
+                </div>
+                <p class="text-[10px] text-slate-400 font-mono mt-0.5">4 llamadas · 50% Saliente</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2 shrink-0">
+              <span
+                class="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">UP
+                · 22ms</span>
+              <button class="p-1 text-slate-400 hover:text-slate-600 chevron-btn"
+                onclick="toggleAccordionOnly('digitel', event)" type="button">
+                <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200 card-chevron"></i>
+              </button>
+            </div>
+          </div>
+          <div
+            class="card-content hidden px-3.5 pb-3.5 pt-1 border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/30">
+            <div class="grid grid-cols-2 gap-2 text-xs py-2 border-b border-slate-100 dark:border-slate-800 mb-2.5">
+              <div>
+                <span class="text-slate-500 text-[10px] uppercase font-semibold block">Efectividad (ASR)</span>
+                <span class="font-bold text-slate-800 dark:text-slate-100 text-sm">75.0%</span>
+              </div>
+              <div>
+                <span class="text-slate-500 text-[10px] uppercase font-semibold block">Duración Prom.</span>
+                <span class="font-bold text-slate-800 dark:text-slate-100 text-sm">03:15 min</span>
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="flex justify-between text-[11px] text-slate-500">
+                <span>Distribución</span>
+                <span class="font-medium text-slate-700 dark:text-slate-300">50% Sal / 50% Ent</span>
+              </div>
+              <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden flex">
+                <div class="bg-blue-600 h-full" style="width: 50%"></div>
+                <div class="bg-emerald-400 h-full" style="width: 50%"></div>
+              </div>
+            </div>
+            <div class="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex justify-end">
+              <button
+                class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 flex items-center gap-1"
+                onclick="applyOperatorFilter('digitel', event)">
+                <i class="fa-solid fa-filter text-[10px]"></i> Filtrar Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 3: Movilnet -->
+        <div
+          class="operator-card border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden transition-all duration-200 bg-white dark:bg-slate-900/90 shadow-xs cursor-pointer"
+          data-carrier="movilnet" onclick="onCardClick('movilnet', event)">
+          <div
+            class="w-full text-left p-3.5 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors select-none">
+            <div class="flex items-center space-x-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="font-bold text-xs text-slate-900 dark:text-white leading-tight">Movilnet Móvil</h4>
+                  <span
+                    class="filter-indicator-tag hidden text-[9px] bg-blue-600 text-white font-bold px-1.5 py-0.2 rounded">ACTIVA</span>
+                </div>
+                <p class="text-[10px] text-slate-400 font-mono mt-0.5">3 llamadas · 66% Saliente</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2 shrink-0">
+              <span
+                class="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">UP
+                · 31ms</span>
+              <button class="p-1 text-slate-400 hover:text-slate-600 chevron-btn"
+                onclick="toggleAccordionOnly('movilnet', event)" type="button">
+                <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200 card-chevron"></i>
+              </button>
+            </div>
+          </div>
+          <div
+            class="card-content hidden px-3.5 pb-3.5 pt-1 border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/30">
+            <div class="grid grid-cols-2 gap-2 text-xs py-2 border-b border-slate-100 dark:border-slate-800 mb-2.5">
+              <div>
+                <span class="text-slate-500 text-[10px] uppercase font-semibold block">Efectividad (ASR)</span>
+                <span class="font-bold text-slate-800 dark:text-slate-100 text-sm">66.7%</span>
+              </div>
+              <div>
+                <span class="text-slate-500 text-[10px] uppercase font-semibold block">Duración Prom.</span>
+                <span class="font-bold text-slate-800 dark:text-slate-100 text-sm">02:40 min</span>
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="flex justify-between text-[11px] text-slate-500">
+                <span>Distribución</span>
+                <span class="font-medium text-slate-700 dark:text-slate-300">66% Sal / 34% Ent</span>
+              </div>
+              <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden flex">
+                <div class="bg-blue-600 h-full" style="width: 66%"></div>
+                <div class="bg-emerald-400 h-full" style="width: 34%"></div>
+              </div>
+            </div>
+            <div class="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex justify-end">
+              <button
+                class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 flex items-center gap-1"
+                onclick="applyOperatorFilter('movilnet', event)">
+                <i class="fa-solid fa-filter text-[10px]"></i> Filtrar Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 4: CANTV -->
+        <div
+          class="operator-card border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden transition-all duration-200 bg-white dark:bg-slate-900/90 shadow-xs cursor-pointer"
+          data-carrier="cantv" onclick="onCardClick('cantv', event)">
+          <div
+            class="w-full text-left p-3.5 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors select-none">
+            <div class="flex items-center space-x-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="font-bold text-xs text-slate-900 dark:text-white leading-tight">CANTV Fijo</h4>
+                  <span
+                    class="filter-indicator-tag hidden text-[9px] bg-blue-600 text-white font-bold px-1.5 py-0.2 rounded">ACTIVA</span>
+                </div>
+                <p class="text-[10px] text-slate-400 font-mono mt-0.5">3 llamadas · 33% Saliente</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2 shrink-0">
+              <span
+                class="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">UP
+                · 15ms</span>
+              <button class="p-1 text-slate-400 hover:text-slate-600 chevron-btn"
+                onclick="toggleAccordionOnly('cantv', event)" type="button">
+                <i class="fa-solid fa-chevron-down text-xs transition-transform duration-200 card-chevron"></i>
+              </button>
+            </div>
+          </div>
+          <div
+            class="card-content hidden px-3.5 pb-3.5 pt-1 border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/30">
+            <div class="grid grid-cols-2 gap-2 text-xs py-2 border-b border-slate-100 dark:border-slate-800 mb-2.5">
+              <div>
+                <span class="text-slate-500 text-[10px] uppercase font-semibold block">Efectividad (ASR)</span>
+                <span class="font-bold text-slate-800 dark:text-slate-100 text-sm">66.7%</span>
+              </div>
+              <div>
+                <span class="text-slate-500 text-[10px] uppercase font-semibold block">Duración Prom.</span>
+                <span class="font-bold text-slate-800 dark:text-slate-100 text-sm">05:10 min</span>
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="flex justify-between text-[11px] text-slate-500">
+                <span>Distribución</span>
+                <span class="font-medium text-slate-700 dark:text-slate-300">33% Sal / 67% Ent</span>
+              </div>
+              <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden flex">
+                <div class="bg-blue-600 h-full" style="width: 33%"></div>
+                <div class="bg-emerald-400 h-full" style="width: 67%"></div>
+              </div>
+            </div>
+            <div class="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800 flex justify-end">
+              <button
+                class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 flex items-center gap-1"
+                onclick="applyOperatorFilter('cantv', event)">
+                <i class="fa-solid fa-filter text-[10px]"></i> Filtrar Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+  </div>
+
+  <!-- MOTOR JAVASCRIPT CDR ASTERISK -->
+  <script>
+    // ESTADO GLOBAL DE DATOS
+    const carrierKeys = ['movistar', 'digitel', 'movilnet', 'cantv'];
+    const emptyRecord = name => ({
+      name, total: 0, ans: 0, noans: 0, busy: 0, fail: 0,
+      asr: '0.0%', acd: '00:00', channels: 'N/D / 60',
+      hourly: Array(9).fill(0), operators: Array(4).fill(0)
+    });
+    let rawData = {
+      all: emptyRecord('Todas las Operadoras'),
+      movistar: emptyRecord('Movistar Móvil'),
+      digitel: emptyRecord('Digitel Móvil'),
+      movilnet: emptyRecord('Movilnet Móvil'),
+      cantv: emptyRecord('CANTV Fijo'),
+      trunks_in: [],
+      trunks_out: []
+    };
+
+    let activeFilter = null;
+    let chartHourly, chartOperator, chartStatus;
+    let isConnected = true;
+
+    // INICIALIZACIÓN
+    document.addEventListener('DOMContentLoaded', () => {
+      // Establecer fecha
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      document.getElementById('current-date').textContent = new Date().toLocaleDateString('es-ES', options);
+
+      initCharts();
+      loadDashboardMetrics();
+      connectMetricsStream();
+    });
+
+    async function loadDashboardMetrics() {
+      try {
+        const response = await fetch('/api/metrics');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        updateDashboardData(await response.json());
+      } catch (error) {
+        document.getElementById('carrierStatusMsg').textContent = `No se pudieron cargar las métricas: ${error.message}`;
+      }
+    }
+
+    function connectMetricsStream() {
+      const source = new EventSource('/api/stream-metrics');
+      source.addEventListener('update', event => {
+        try {
+          updateDashboardData(JSON.parse(event.data));
+        } catch (error) {
+          document.getElementById('carrierStatusMsg').textContent = `Respuesta de métricas inválida: ${error.message}`;
+        }
+      });
+    }
+
+    function updateDashboardData(metrics) {
+      if (!metrics || !metrics.all) return;
+      rawData = metrics;
+      document.getElementById('carrierCountBadge').innerHTML =
+        `<i class="fa-solid fa-chart-simple text-emerald-500 mr-1"></i> ${metrics.carrier_count || 0} Destinos`;
+      document.getElementById('carrierStatusMsg').textContent = metrics.error ||
+        'Métricas calculadas a partir de los registros CDR disponibles.';
+      document.querySelector('#carrierStatusBadge p.font-semibold').textContent = metrics.error
+        ? 'Error al leer los CDR'
+        : 'Estado SIP no disponible desde CDR';
+      document.getElementById('total-call-trend').textContent = 'Registros CDR';
+      updateTrunkList('inboundTrunkList', metrics.trunks_in || []);
+      updateTrunkList('outboundTrunkList', metrics.trunks_out || []);
+      updateOperatorCards();
+      if (activeFilter && rawData[activeFilter]) applyOperatorFilter(activeFilter);
+      else clearOperatorFilter();
+    }
+
+    function updateTrunkList(listId, trunks) {
+      const list = document.getElementById(listId);
+      list.replaceChildren();
+      trunks.forEach(trunk => {
+        const row = document.createElement('li');
+        row.className = 'py-2.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 px-2 rounded-lg transition trunk-row';
+        row.dataset.carrier = trunk.carrier;
+
+        const labelGroup = document.createElement('div');
+        labelGroup.className = 'flex items-center space-x-2';
+        const dot = document.createElement('span');
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+        const name = document.createElement('span');
+        name.className = 'font-medium text-slate-700 dark:text-slate-200 font-mono text-xs';
+        name.textContent = trunk.name;
+        labelGroup.append(dot, name);
+
+        const count = document.createElement('span');
+        count.className = 'font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700';
+        count.textContent = trunk.value;
+        row.append(labelGroup, count);
+        list.append(row);
+      });
+    }
+
+    function updateOperatorCards() {
+      document.querySelectorAll('.operator-card').forEach(card => {
+        const key = card.dataset.carrier;
+        const data = rawData[key];
+        if (!data) return;
+        const directions = (data.inbound || 0) + (data.outbound || 0);
+        const outboundPercent = directions ? Math.round(data.outbound / directions * 100) : 0;
+        const inboundPercent = 100 - outboundPercent;
+        const summary = card.querySelector('p.font-mono');
+        if (summary) summary.textContent = `${data.total} llamadas · ${outboundPercent}% Saliente`;
+        const values = card.querySelectorAll('.card-content .grid > div > span.font-bold');
+        if (values[0]) values[0].textContent = data.asr;
+        if (values[1]) values[1].textContent = `${data.acd} min`;
+        const status = card.querySelector('.flex.items-center.space-x-2.shrink-0 > span');
+        if (status) status.textContent = 'CDR';
+        const distribution = card.querySelector('.card-content .space-y-1 .font-medium');
+        if (distribution) distribution.textContent = `${outboundPercent}% Sal / ${inboundPercent}% Ent`;
+        const bars = card.querySelectorAll('.card-content .space-y-1 .overflow-hidden > div');
+        if (bars[0]) bars[0].style.width = `${outboundPercent}%`;
+        if (bars[1]) bars[1].style.width = `${inboundPercent}%`;
+      });
+    }
+
+    // TEMA CLARO / OSCURO
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.classList.contains('dark');
+      const label = document.getElementById('themeLabel');
+      const icon = document.getElementById('themeIcon');
+
+      if (isDark) {
+        html.classList.remove('dark');
+        label.textContent = 'Modo Oscuro';
+        icon.innerHTML = '<i class="fa-solid fa-moon"></i>';
+      } else {
+        html.classList.add('dark');
+        label.textContent = 'Modo Claro';
+        icon.innerHTML = '<i class="fa-solid fa-sun"></i>';
+      }
+
+      // Actualizar colores de los charts
+      updateChartColors();
+    }
+
+    // ESTADO DE CONEXIÓN
+    function toggleConnection() {
+      const badge = document.getElementById('statusBadge');
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+
+      isConnected = !isConnected;
+
+      if (isConnected) {
+        badge.className = "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 transition-all shadow-xs";
+        dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 status-pulse";
+        text.textContent = "En Vivo";
+      } else {
+        badge.className = "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-900 transition-all shadow-xs";
+        dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+        text.textContent = "Desconectado";
+      }
+    }
+
+    // INTERACTVIDAD DE CHART.JS
+    function initCharts() {
+      const isDarkMode = document.documentElement.classList.contains('dark');
+      const textColor = isDarkMode ? '#94a3b8' : '#64748b';
+      const gridColor = isDarkMode ? '#1e293b' : '#f1f5f9';
+
+      // 1. Chart Flujo Horario
+      const ctx1 = document.getElementById('chartHourlyFlow').getContext('2d');
+      chartHourly = new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels: ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'],
+          datasets: [{
+            label: 'Llamadas',
+            data: rawData.all.hourly,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.12)',
+            fill: true,
+            tension: 0.35,
+            borderWidth: 3,
+            pointRadius: 4,
+            pointBackgroundColor: '#3b82f6'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: textColor }, grid: { color: gridColor } },
+            y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor }, beginAtZero: true }
+          }
+        }
+      });
+
+      // 2. Chart Volumen por Operadora
+      const ctx2 = document.getElementById('chartOperatorVolume').getContext('2d');
+      chartOperator = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: ['Movistar', 'Digitel', 'Movilnet', 'CANTV'],
+          datasets: [{
+            label: 'Llamadas',
+            data: rawData.all.operators,
+            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: textColor }, grid: { display: false } },
+            y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor }, beginAtZero: true }
+          },
+          onClick: (evt, activeElements) => {
+            if (activeElements.length > 0) {
+              const index = activeElements[0].index;
+              const keys = ['movistar', 'digitel', 'movilnet', 'cantv'];
+              applyOperatorFilter(keys[index]);
+            }
+          }
+        }
+      });
+
+      // 3. Chart Estatus CDR (Donut)
+      const ctx3 = document.getElementById('chartCallStatus').getContext('2d');
+      chartStatus = new Chart(ctx3, {
+        type: 'doughnut',
+        data: {
+          labels: ['Answered', 'No Answer', 'Busy', 'Failed'],
+          datasets: [{
+            data: [rawData.all.ans, rawData.all.noans, rawData.all.busy, rawData.all.fail],
+            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'],
+            borderWidth: 0,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '78%',
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function updateChartColors() {
+      if (!chartHourly) return;
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#94a3b8' : '#64748b';
+      const gridColor = isDark ? '#1e293b' : '#f1f5f9';
+
+      [chartHourly, chartOperator].forEach(chart => {
+        chart.options.scales.x.ticks.color = textColor;
+        if (chart.options.scales.x.grid) chart.options.scales.x.grid.color = gridColor;
+        chart.options.scales.y.ticks.color = textColor;
+        chart.options.scales.y.grid.color = gridColor;
+        chart.update();
+      });
+    }
+
+    // APLICAR Y LIMPIAR FILTROS DE OPERADORA
+    function applyOperatorFilter(carrierKey, event) {
+      if (event) event.stopPropagation();
+
+      activeFilter = carrierKey;
+      const data = rawData[carrierKey];
+      if (!data) return;
+
+      // Actualizar Banners de Filtro
+      document.getElementById('headerFilterBadge').classList.remove('hidden');
+      document.getElementById('headerFilterBadge').classList.add('flex');
+      document.getElementById('headerFilterName').textContent = data.name;
+
+      document.getElementById('activeFilterBanner').classList.remove('hidden');
+      document.getElementById('activeFilterBanner').classList.add('flex');
+      document.getElementById('filterBannerName').textContent = data.name;
+      document.getElementById('filterBannerMeta').textContent = `${data.total} llamadas`;
+
+      document.getElementById('chartResetBtn').classList.remove('hidden');
+      document.getElementById('chartHelperText').textContent = `Filtrado por ${data.name}`;
+
+      // Actualizar KPIs
+      document.getElementById('total-call-count').textContent = data.total;
+      document.getElementById('kpi-asr').textContent = data.asr;
+      document.getElementById('kpi-asr-sub').textContent = `${data.ans} Respondidas`;
+      document.getElementById('kpi-acd').textContent = data.acd;
+      document.getElementById('kpi-channels').textContent = data.channels;
+      document.getElementById('donutTotalCount').textContent = data.total;
+
+      // Actualizar Leyendas CDR Donut
+      document.getElementById('leg-ans').textContent = data.ans;
+      document.getElementById('leg-noans').textContent = data.noans;
+      document.getElementById('leg-busy').textContent = data.busy;
+      document.getElementById('leg-fail').textContent = data.fail;
+
+      // Actualizar Gráficos
+      chartHourly.data.datasets[0].data = data.hourly;
+      chartHourly.update();
+
+      chartOperator.data.datasets[0].data = data.operators;
+      chartOperator.update();
+
+      chartStatus.data.datasets[0].data = [data.ans, data.noans, data.busy, data.fail];
+      chartStatus.update();
+
+      // Filtrar Lista de Trunks
+      document.querySelectorAll('.trunk-row').forEach(row => {
+        if (row.getAttribute('data-carrier') === carrierKey) {
+          row.style.display = 'flex';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      // Resaltar Tarjeta en Sidebar
+      document.querySelectorAll('.operator-card').forEach(card => {
+        if (card.getAttribute('data-carrier') === carrierKey) {
+          card.classList.add('card-selected');
+          card.querySelector('.filter-indicator-tag').classList.remove('hidden');
+        } else {
+          card.classList.remove('card-selected');
+          card.querySelector('.filter-indicator-tag').classList.add('hidden');
+        }
+      });
+    }
+
+    function clearOperatorFilter() {
+      activeFilter = null;
+      const data = rawData.all;
+
+      // Ocultar Banners
+      document.getElementById('headerFilterBadge').classList.add('hidden');
+      document.getElementById('headerFilterBadge').classList.remove('flex');
+
+      document.getElementById('activeFilterBanner').classList.add('hidden');
+      document.getElementById('activeFilterBanner').classList.remove('flex');
+
+      document.getElementById('chartResetBtn').classList.add('hidden');
+      document.getElementById('chartHelperText').textContent = "Mostrando todas";
+
+      // Restaurar KPIs
+      document.getElementById('total-call-count').textContent = data.total;
+      document.getElementById('kpi-asr').textContent = data.asr;
+      document.getElementById('kpi-asr-sub').textContent = `${data.ans} Respondidas`;
+      document.getElementById('kpi-acd').textContent = data.acd;
+      document.getElementById('kpi-channels').textContent = data.channels;
+      document.getElementById('donutTotalCount').textContent = data.total;
+
+      // Restaurar Leyenda
+      document.getElementById('leg-ans').textContent = data.ans;
+      document.getElementById('leg-noans').textContent = data.noans;
+      document.getElementById('leg-busy').textContent = data.busy;
+      document.getElementById('leg-fail').textContent = data.fail;
+
+      // Restaurar Gráficos
+      chartHourly.data.datasets[0].data = data.hourly;
+      chartHourly.update();
+
+      chartOperator.data.datasets[0].data = data.operators;
+      chartOperator.update();
+
+      chartStatus.data.datasets[0].data = [data.ans, data.noans, data.busy, data.fail];
+      chartStatus.update();
+
+      // Mostrar todos los trunks
+      document.querySelectorAll('.trunk-row').forEach(row => row.style.display = 'flex');
+
+      // Quitar marcas de tarjetas
+      document.querySelectorAll('.operator-card').forEach(card => {
+        card.classList.remove('card-selected');
+        card.querySelector('.filter-indicator-tag').classList.add('hidden');
+      });
+    }
+
+    // ACCIONES DE TARJETAS Y ACORDEÓN
+    function onCardClick(carrierKey, event) {
+      if (event.target.closest('.chevron-btn')) return;
+      applyOperatorFilter(carrierKey, event);
+    }
+
+    function toggleAccordionOnly(carrierKey, event) {
+      if (event) event.stopPropagation();
+      const card = document.querySelector(`.operator-card[data-carrier="${carrierKey}"]`);
+      if (!card) return;
+
+      const content = card.querySelector('.card-content');
+      const chevron = card.querySelector('.card-chevron');
+
+      const isHidden = content.classList.contains('hidden');
+      if (isHidden) {
+        content.classList.remove('hidden');
+        chevron.classList.add('rotate-180');
+      } else {
+        content.classList.add('hidden');
+        chevron.classList.remove('rotate-180');
+      }
+    }
+
+    function toggleAllAccordions() {
+      const btn = document.getElementById('toggleAllBtn');
+      const isExpanding = btn.textContent.includes('Expandir');
+
+      document.querySelectorAll('.operator-card').forEach(card => {
+        const content = card.querySelector('.card-content');
+        const chevron = card.querySelector('.card-chevron');
+
+        if (isExpanding) {
+          content.classList.remove('hidden');
+          chevron.classList.add('rotate-180');
+        } else {
+          content.classList.add('hidden');
+          chevron.classList.remove('rotate-180');
+        }
+      });
+
+      btn.textContent = isExpanding ? 'Colapsar todo' : 'Expandir todo';
+    }
+
+    // SIDEBAR MÓVIL
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById('operatorSidebar');
+      sidebar.classList.toggle('translate-x-full');
+    }
+  </script>
+
+</body>
+
+</html>
