@@ -38,6 +38,46 @@ STATUS_ALIASES = {
     "CHANUNAVAIL": "fail",
 }
 
+TRUNK_DISPLAY_NAMES = {
+
+    "SIP/INCONCERT_OUT": "inConcert Saliente",
+    "SIP/INCONCERT_IN": "inConcert Entrante",
+    "SIP/CPA_SIP_1": "CPA SIP Troncal 1",
+    "SIP/CPA_SIP_2": "CPA SIP Troncal 2",
+    "SIP/ITXINTER0IMG0CCS": "Interconexión ITX Caracas",
+    "SIP/ITXINTER0IMG0VAL": "Interconexión ITX Valencia",
+    "SIP/PBX_H1CCS_1_OUT": "PBX Hospital 1 Caracas",
+    "SIP/PBX_H1MBO_1_OUT": "PBX Hospital 1 Maracaibo",
+    "SIP/PBX_H1BQT_1_OUT": "PBX Hospital 1 Barquisimeto",
+    "SIP/BANESCO": "Enlace Banesco",
+    "SIP/SERVIDOR_2": "Servidor SIP Auxiliar 2",
+    "SIP/SERVIDOR_3": "Servidor SIP Auxiliar 3",
+    "SIP/GGGG_TRUNK_OUT1": "Troncal GGGG Saliente 1",
+    "SIP/TATA_PROVICIONAL": "Enlace TATA Internacional",
+    "SIP/LDTELECOM_3_OUT": "LD Telecom Saliente 3",
+}
+
+
+def get_trunk_display_name(raw_name: str | None, direction: str = "in") -> str:
+    """
+    Retorna un nombre legible y descriptivo para la troncal SIP.
+    Si la troncal no tiene un mapeo explícito, genera un nombre limpio retirando el prefijo 'SIP/'.
+    """
+    if not raw_name:
+        return "Troncal Desconocida"
+
+    normalized = raw_name.strip()
+
+    if normalized in TRUNK_DISPLAY_NAMES:
+        return TRUNK_DISPLAY_NAMES[normalized]
+
+    clean_name = normalized
+
+    if clean_name.startswith("SIP/"):
+        clean_name = clean_name[4:]
+    return clean_name.replace("_", " ").title()
+        
+
 
 def _empty_metrics():
     result = {}
@@ -96,34 +136,34 @@ def get_dashboard_metrics():
         connection.execute(
             "CREATE VIEW cdr_data AS "
             f"SELECT * FROM read_csv_auto('{escaped_path}', header=false, all_varchar=true)"
-        )
-        connection.execute(
-            f"""
-            CREATE VIEW normalized_cdr AS
-            SELECT
-                ({_carrier_expression()}) AS carrier,
-                UPPER(TRIM(COALESCE(CAST(column14 AS VARCHAR), ''))) AS status,
-                TRY_CAST(column09 AS TIMESTAMP) AS call_time,
-                TRY_CAST(column13 AS DOUBLE) AS duration,
-                NULLIF(TRIM(split_part(CAST(column05 AS VARCHAR), '-', 1)), '') AS trunk_in,
-                NULLIF(TRIM(split_part(CAST(column06 AS VARCHAR), '-', 1)), '') AS trunk_out
-            FROM cdr_data
-            """
-        )
-
+                )
+        connection.execute(                 
+                    f"""
+                    CREATE VIEW normalized_cdr AS
+                    SELECT
+                        ({_carrier_expression()}) AS carrier,
+                        UPPER(TRIM(COALESCE(CAST(column14 AS VARCHAR), ''))) AS status,
+                        TRY_CAST(column09 AS TIMESTAMP) AS call_time,
+                        TRY_CAST(column13 AS DOUBLE) AS duration,
+                        NULLIF(TRIM(split_part(CAST(column05 AS VARCHAR), '-', 1)), '') AS trunk_in,
+                        NULLIF(TRIM(split_part(CAST(column06 AS VARCHAR), '-', 1)), '') AS trunk_out
+                    FROM cdr_data
+                    """
+                )
+        
         total_calls = connection.execute(
-            "SELECT COUNT(*) FROM normalized_cdr"
-        ).fetchone()[0]
-
+                    "SELECT COUNT(*) FROM normalized_cdr"
+                ).fetchone()[0]
+        
         grouped = connection.execute(
-            """
-            SELECT carrier, status, EXTRACT(HOUR FROM call_time) AS hour,
-                   COUNT(*) AS total,
-                   AVG(duration) FILTER (WHERE status IN ('ANSWERED', 'ANSWER')) AS acd
-            FROM normalized_cdr
-            GROUP BY carrier, status, hour
-            """
-        ).fetchall()
+                    """
+                    SELECT carrier, status, EXTRACT(HOUR FROM call_time) AS hour,
+                           COUNT(*) AS total,
+                           AVG(duration) FILTER (WHERE status IN ('ANSWERED', 'ANSWER')) AS acd
+                    FROM normalized_cdr
+                    GROUP BY carrier, status, hour
+                    """
+                ).fetchall()
 
         aggregates = defaultdict(lambda: {
             "total": 0,
@@ -211,8 +251,14 @@ def get_dashboard_metrics():
                 LIMIT 20
                 """
             ).fetchall()
+            direction = "in" if metric_key == "trunks_in" else "out"
             metrics[metric_key] = [
-                {"name": trunk, "value": count, "carrier": carrier}
+                {
+                    "name": get_trunk_display_name(trunk, direction=direction),
+                    "raw_name": trunk,
+                    "value": count,
+                    "carrier": carrier,
+                }
                 for carrier, trunk, count in rows
             ]
 
