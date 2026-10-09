@@ -4,15 +4,88 @@
         {
             "label": "Iniciar Servidor CDR",
             "type": "shell",
-            "command": ".\\env\\Scripts\\activate && uvicorn app.main:app --reload",
+            "command": "if (Test-Path '${workspaceFolder}/CDR-Graf-System-main/backend') { Set-Location '${workspaceFolder}/CDR-Graf-System-main/backend' } elseif (Test-Path '${workspaceFolder}/backend') { Set-Location '${workspaceFolder}/backend' }; if (Test-Path '${workspaceFolder}/env/Scripts/python.exe') { & '${workspaceFolder}/env/Scripts/python.exe' run_server.py --host ${input:serverMode} --port ${input:serverPort} --browser ${input:openBrowser} } elseif (Test-Path '${workspaceFolder}/../env/Scripts/python.exe') { & '${workspaceFolder}/../env/Scripts/python.exe' run_server.py --host ${input:serverMode} --port ${input:serverPort} --browser ${input:openBrowser} } elseif (Test-Path '${workspaceFolder}/.venv/Scripts/python.exe') { & '${workspaceFolder}/.venv/Scripts/python.exe' run_server.py --host ${input:serverMode} --port ${input:serverPort} --browser ${input:openBrowser} } else { python run_server.py --host ${input:serverMode} --port ${input:serverPort} --browser ${input:openBrowser} }",
             "options": {
-                "cwd": "${workspaceFolder}/backend"
+                "cwd": "${workspaceFolder}",
+                "shell": {
+                    "executable": "powershell.exe",
+                    "args": [
+                        "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-Command"
+                    ]
+                }
             },
             "presentation": {
                 "reveal": "always",
-                "panel": "new"
+                "panel": "new",
+                "focus": true
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Iniciar Servidor CDR (Preguntas en Terminal)",
+            "type": "shell",
+            "command": "if (Test-Path '${workspaceFolder}/CDR-Graf-System-main/backend') { Set-Location '${workspaceFolder}/CDR-Graf-System-main/backend' } elseif (Test-Path '${workspaceFolder}/backend') { Set-Location '${workspaceFolder}/backend' }; if (Test-Path '${workspaceFolder}/env/Scripts/python.exe') { & '${workspaceFolder}/env/Scripts/python.exe' run_server.py --interactive } elseif (Test-Path '${workspaceFolder}/../env/Scripts/python.exe') { & '${workspaceFolder}/../env/Scripts/python.exe' run_server.py --interactive } elseif (Test-Path '${workspaceFolder}/.venv/Scripts/python.exe') { & '${workspaceFolder}/.venv/Scripts/python.exe' run_server.py --interactive } else { python run_server.py --interactive }",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "shell": {
+                    "executable": "powershell.exe",
+                    "args": [
+                        "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-Command"
+                    ]
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": true
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "serverMode",
+            "type": "pickString",
+            "description": "Seleccione el modo de red para el servidor",
+            "options": [
+                {
+                    "label": "🌐 Red Local / Wi-Fi (0.0.0.0) [Permite acceso desde otras PCs y celulares]",
+                    "value": "0.0.0.0"
+                },
+                {
+                    "label": "💻 Solo esta PC (127.0.0.1) [Acceso exclusivo local]",
+                    "value": "127.0.0.1"
+                }
+            ],
+            "default": "0.0.0.0"
+        },
+        {
+            "id": "serverPort",
+            "type": "promptString",
+            "description": "Ingrese el puerto del servidor (por defecto 8000)",
+            "default": "8000"
+        },
+        {
+            "id": "openBrowser",
+            "type": "pickString",
+            "description": "¿Desea abrir el navegador web automáticamente?",
+            "options": [
+                {
+                    "label": "Sí, abrir navegador automáticamente",
+                    "value": "yes"
+                },
+                {
+                    "label": "No, solo iniciar servidor",
+                    "value": "no"
+                }
+            ],
+            "default": "yes"
         }
     ]
 }
