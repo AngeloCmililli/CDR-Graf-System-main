@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dashboard CDR Asterisk - Monitoreo VoIP</title>
+<!-- Tailwind CSS CDN with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#0a0f1d',
+              card: '#111827',
+              border: '#1f293d',
+              accent: '#38bdf8',
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<!-- Custom Core Styles -->
+<style data-purpose="custom-styling">
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b1120;
+    }
+    html:not(.dark) ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 9999px;
+    }
+    html:not(.dark) ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+    }
+    /* Pulsing radar glow */
+    @keyframes subtle-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.05); }
+    }
+    .status-pulse {
+      animation: subtle-pulse 2.2s infinite ease-in-out;
+    }
+
+    /* SVG smooth animations */
+    .chart-transition {
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .donut-circle {
+      transition: stroke-dasharray 0.7s cubic-bezier(0.4, 0, 0.2, 1), stroke-dashoffset 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .num-fade {
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+  </style>
+</head>
+<body class="bg-[#0b1120] text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white pb-10 transition-colors duration-300 dark:bg-[#0b1120] dark:text-slate-100">
+<!-- BEGIN: Desktop Layout Shell (Max 1440px) -->
+<div class="max-w-[1440px] mx-auto min-h-screen px-6 lg:px-10 pt-6" data-purpose="desktop-dashboard-shell">
+<!-- BEGIN: TopHeader -->
+<header class="bg-[#111827]/95 dark:bg-[#111827]/95 backdrop-blur-md rounded-2xl px-6 py-4 border border-slate-800 dark:border-slate-800 shadow-xl shadow-black/40 dark:shadow-black/40 mb-6 sticky top-4 z-40 transition-colors duration-300" data-purpose="header-section" id="mainHeader">
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+<!-- Brand & Description -->
+<div class="flex items-center gap-3.5">
+<div class="p-2.5 bg-blue-500/10 dark:bg-blue-500/10 text-blue-400 dark:text-blue-400 rounded-xl border border-blue-500/20 shadow-inner" id="brandIconWrapper">
+<svg aria-hidden="true" class="lucide lucide-phone-call w-6 h-6" data-lucide="phone-call" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M13 2a9 9 0 0 1 9 9"></path><path d="M13 6a5 5 0 0 1 5 5"></path><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"></path></svg>
+</div>
+<div>
+<div class="flex items-center gap-3">
+<h1 class="text-xl lg:text-2xl font-black tracking-tight text-white dark:text-white flex items-center gap-2" id="headerTitle">
+                Dashboard CDR Asterisk
+              </h1>
+<!-- Live Status Pill -->
+<span class="inline-flex items-center gap-1.5 bg-emerald-950/60 dark:bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 px-3 py-1 rounded-full text-xs font-semibold tracking-wide status-pulse">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span>
+<span class="">En Vivo (Conectado)</span>
+</span>
+</div>
+<p class="text-xs lg:text-sm text-slate-400 dark:text-slate-400 mt-0.5 flex items-center gap-1.5" id="headerSubtitle">
+<svg aria-hidden="true" class="lucide lucide-activity w-3.5 h-3.5 text-cyan-400" data-lucide="activity" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg>
+              Monitoreo en tiempo real de llamadas nacionales
+            </p>
+</div>
+</div>
+<!-- Date & Actions Bar -->
+<div class="flex items-center gap-3 self-end md:self-center">
+<div class="flex items-center gap-2 text-xs bg-[#0d1322] dark:bg-[#0d1322] border border-slate-800 dark:border-slate-800 text-slate-300 dark:text-slate-300 px-3.5 py-2 rounded-xl" id="dateBadge">
+<svg aria-hidden="true" class="lucide lucide-calendar w-4 h-4 text-slate-400" data-lucide="calendar" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M8 2v3"></path><path d="M16 2v3"></path><rect height="18" rx="2" width="18" x="3" y="3"></rect><path d="M3 9h18"></path></svg>
+<span class="">Hoy: <strong class="text-slate-100 dark:text-slate-100 font-semibold" id="dateText">24 Mayo 2024</strong></span>
+</div>
+<!-- Toggle Theme Button -->
+<button class="flex items-center gap-1.5 text-xs bg-slate-800 dark:bg-slate-800 hover:bg-slate-700 active:bg-slate-700 text-slate-200 dark:text-slate-200 border border-slate-700/80 px-3.5 py-2 rounded-xl transition shadow-sm cursor-pointer select-none" id="themeToggleBtn" onclick="toggleTheme()" title="Alternar tema">
+<span id="themeIcon">
+<svg aria-hidden="true" class="lucide lucide-sun w-3.5 h-3.5 text-amber-400" data-lucide="sun" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
+</span>
+<span class="font-medium" id="themeBtnText">Modo Claro</span>
+</button>
+<!-- Refresh Button -->
+<button class="flex items-center gap-1.5 text-xs bg-blue-600/20 hover:bg-blue-600/30 active:bg-blue-600/40 text-blue-300 border border-blue-500/30 px-3.5 py-2 rounded-xl transition shadow-sm font-medium cursor-pointer" id="refreshBtn" onclick="refreshDataAnimation()" title="Recargar datos">
+<svg aria-hidden="true" class="lucide lucide-refresh-cw w-3.5 h-3.5 text-sky-400" data-lucide="refresh-cw" fill="none" height="24" id="refreshIcon" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>
+<span class="">Actualizar</span>
+</button>
+</div>
+</div>
+</header>
+<!-- END: TopHeader -->
+<!-- Filter Notification Badge (Dynamic) -->
+<div class="hidden mb-4 bg-sky-500/10 border border-sky-500/30 rounded-xl px-4 py-2.5 flex items-center justify-between transition-all duration-300" id="filterBanner">
+<div class="flex items-center gap-2 text-xs text-sky-400 font-medium">
+<svg class="lucide lucide-filter" fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+<span>Filtro activo: <strong class="text-white dark:text-white font-bold" id="filterBannerName">Movistar Móvil</strong></span>
+<span class="text-sky-300/70 text-[11px]" id="filterBannerDetails">— Métricas, curva horaria y estados recalculados</span>
+</div>
+<button class="text-xs bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 px-3 py-1 rounded-lg border border-sky-500/40 font-semibold transition cursor-pointer flex items-center gap-1.5" onclick="resetActiveFilter()">
+<span>Restablecer Todo</span>
+<svg fill="none" height="12" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="12" xmlns="http://www.w3.org/2000/svg"><line x1="18" x2="6" y1="6" y2="18"></line><line x1="6" x2="18" y1="6" y2="18"></line></svg>
+</button>
+</div>
+<!-- BEGIN: PrimaryKPISection (Hero Banner Across Top) -->
+<section class="bg-gradient-to-r from-[#131d33] via-[#0f172a] to-[#111827] rounded-2xl p-6 lg:p-7 border border-slate-800 shadow-xl mb-6 relative overflow-hidden transition-all duration-300" data-purpose="kpi-total-calls" id="heroCard">
+<!-- Glow effect backdrop -->
+<div class="absolute -right-16 -top-16 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute left-1/3 -bottom-20 w-72 h-72 bg-sky-500/5 rounded-full blur-3xl pointer-events-none"></div>
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+<!-- Big Hero Card: Total de Llamadas Diarias -->
+<div class="flex-1 lg:max-w-md">
+<div class="flex items-center gap-2 mb-2">
+<div class="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-slate-400" id="kpiHeroTitle">
+<svg aria-hidden="true" class="lucide lucide-bar-chart-3 w-4 h-4 text-sky-400" data-lucide="bar-chart-3" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
+<span id="kpiHeroLabel">Total de Llamadas Diarias</span>
+</div>
+<div class="flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full text-xs font-semibold" id="kpiGrowthBadge">
+<svg aria-hidden="true" class="lucide lucide-trending-up w-3 h-3" data-lucide="trending-up" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M16 7h6v6"></path><path d="m22 7-8.5 8.5-5-5L2 17"></path></svg>
+<span id="kpiGrowthText">+12.4% vs ayer</span>
+</div>
+</div>
+<div class="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-300 font-mono num-fade" id="totalCallsNumber">
+            80,898
+</div>
+<p class="text-xs sm:text-sm text-slate-400 font-normal mt-1 flex items-center gap-2" id="kpiDescriptionText">
+<span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+<span id="kpiSubtext">Consolidado general de tráfico en tiempo real</span>
+</p>
+</div>
+<!-- Inbound vs Outbound Metrics Split Cards (Horizontal on Desktop) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 lg:max-w-2xl">
+<!-- Llamadas Entrantes -->
+<div class="bg-[#0b1222]/90 backdrop-blur p-4 lg:p-5 rounded-xl border border-emerald-500/25 flex flex-col justify-between hover:border-emerald-500/40 transition duration-300" id="cardInbound">
+<div class="flex items-center justify-between">
+<span class="text-xs lg:text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
+<svg aria-hidden="true" class="lucide lucide-phone-incoming w-4 h-4" data-lucide="phone-incoming" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M16 2v6h6"></path><path d="m22 2-6 6"></path><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"></path></svg>
+                Entrantes
+              </span>
+<span class="text-xs bg-emerald-500/15 text-emerald-300 font-mono font-bold px-2 py-0.5 rounded-md border border-emerald-500/30" id="inboundPercent">60%</span>
+</div>
+<div class="mt-3">
+<span class="text-2xl lg:text-3xl font-extrabold text-white dark:text-white font-mono num-fade" id="inboundNumber">48,539</span>
+<p class="text-xs text-slate-400 mt-0.5" id="inboundSub">Total recibidas</p>
+</div>
+<!-- Sub progress bar -->
+<div class="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden mt-3">
+<div class="bg-emerald-400 h-full rounded-full transition-all duration-500" id="inboundBar" style="width: 60%;"></div>
+</div>
+</div>
+<!-- Llamadas Salientes -->
+<div class="bg-[#0b1222]/90 backdrop-blur p-4 lg:p-5 rounded-xl border border-sky-500/25 flex flex-col justify-between hover:border-sky-500/40 transition duration-300" id="cardOutbound">
+<div class="flex items-center justify-between">
+<span class="text-xs lg:text-sm font-semibold text-sky-400 flex items-center gap-1.5">
+<svg aria-hidden="true" class="lucide lucide-phone-outgoing w-4 h-4" data-lucide="phone-outgoing" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="m16 8 6-6"></path><path d="M22 8V2h-6"></path><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"></path></svg>
+                Salientes
+              </span>
+<span class="text-xs bg-sky-500/15 text-sky-300 font-mono font-bold px-2 py-0.5 rounded-md border border-sky-500/30" id="outboundPercent">40%</span>
+</div>
+<div class="mt-3">
+<span class="text-2xl lg:text-3xl font-extrabold text-white dark:text-white font-mono num-fade" id="outboundNumber">32,359</span>
+<p class="text-xs text-slate-400 mt-0.5" id="outboundSub">Total enviadas</p>
+</div>
+<!-- Sub progress bar -->
+<div class="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden mt-3">
+<div class="bg-sky-400 h-full rounded-full transition-all duration-500" id="outboundBar" style="width: 40%;"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: PrimaryKPISection -->
+<!-- BEGIN: Main Dashboard Grid (2 Columns Desktop) -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+<!-- ================= COLUMN 1 (LEFT TOP): Flujo de Llamadas por Hora ================= -->
+<section class="bg-[#111827] rounded-2xl p-5 lg:p-6 border border-slate-800 shadow-xl flex flex-col justify-between transition-colors duration-300" data-purpose="chart-hourly-flow" id="chartSection">
+<div>
+<div class="flex items-start justify-between mb-4">
+<div>
+<h2 class="text-base font-bold text-white dark:text-white flex items-center gap-2 card-title">
+<svg aria-hidden="true" class="lucide lucide-clock w-5 h-5 text-sky-400" data-lucide="clock" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+                Flujo de Llamadas por Hora
+              </h2>
+<p class="text-xs text-slate-400 mt-0.5 card-subtitle">
+                Valores exactos por intervalo horario (en llamadas reales)
+              </p>
+</div>
+<div class="text-right">
+<span class="text-xs bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 px-2.5 py-1 rounded-md font-mono font-semibold transition-all" id="chartPeakBadge">
+                Pico: 3,250 @ 10:00
+              </span>
+</div>
+</div>
+<!-- Real Numbers Curved Line Chart SVG -->
+<div class="w-full bg-[#0d1322] rounded-xl p-4 border border-slate-800/80 transition-colors duration-300" id="chartContainer">
+<div class="relative w-full h-72">
+<svg class="w-full h-full overflow-visible" id="hourlySvg" preserveaspectratio="none" viewbox="0 0 520 240">
+<defs>
+<lineargradient id="callHourlyGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#38bdf8" stop-opacity="0.45"></stop>
+<stop offset="55%" stop-color="#1d4ed8" stop-opacity="0.15"></stop>
+<stop offset="100%" stop-color="#0284c7" stop-opacity="0.0"></stop>
+</lineargradient>
+</defs>
+<!-- Y Axis Gridlines and Real Values Labels -->
+<line class="grid-line" stroke="#1f293d" stroke-dasharray="3,3" stroke-width="1" x1="48" x2="510" y1="35" y2="35"></line>
+<text fill="#64748b" font-family="monospace" font-size="10" id="yLabel3" text-anchor="end" x="42" y="38">3,000</text>
+<line class="grid-line" stroke="#1f293d" stroke-dasharray="3,3" stroke-width="1" x1="48" x2="510" y1="95" y2="95"></line>
+<text fill="#64748b" font-family="monospace" font-size="10" id="yLabel2" text-anchor="end" x="42" y="98">2,000</text>
+<line class="grid-line" stroke="#1f293d" stroke-dasharray="3,3" stroke-width="1" x1="48" x2="510" y1="155" y2="155"></line>
+<text fill="#64748b" font-family="monospace" font-size="10" id="yLabel1" text-anchor="end" x="42" y="158">1,000</text>
+<line class="baseline-line" stroke="#334155" stroke-width="1.2" x1="48" x2="510" y1="215" y2="215"></line>
+<text fill="#64748b" font-family="monospace" font-size="10" id="yLabel0" text-anchor="end" x="42" y="218">0</text>
+<!-- Area Path Under Smooth Curve -->
+<path class="chart-transition" d="M 60,215 L 60,92 C 85,92 85,88 112,88 C 137,88 142,20 165,20 C 188,20 195,90 220,90 C 245,90 252,153 275,153 C 298,153 305,151 330,151 C 355,151 362,89 385,89 C 408,89 418,154 440,154 C 462,154 472,156 495,156 L 495,215 Z" fill="url(#callHourlyGradient)" id="svgAreaPath"></path>
+<!-- Stroke Smooth Line -->
+<path class="chart-transition" d="M 60,92 C 85,92 85,88 112,88 C 137,88 142,20 165,20 C 188,20 195,90 220,90 C 245,90 252,153 275,153 C 298,153 305,151 330,151 C 355,151 362,89 385,89 C 408,89 418,154 440,154 C 462,154 472,156 495,156" fill="none" id="svgLinePath" stroke="#38bdf8" stroke-linecap="round" stroke-width="3.5"></path>
+<!-- Dynamic Point Circles -->
+<g id="svgPointsGroup">
+<circle class="chart-transition" cx="60" cy="92" fill="#0284c7" id="pt0" r="4.5" stroke="#ffffff" stroke-width="2"></circle>
+<circle class="chart-transition" cx="112" cy="88" fill="#0284c7" id="pt1" r="4.5" stroke="#ffffff" stroke-width="2"></circle>
+<circle class="status-pulse chart-transition" cx="165" cy="20" fill="#38bdf8" id="pt2" r="6.5" stroke="#ffffff" stroke-width="2.5"></circle>
+<circle class="chart-transition" cx="220" cy="90" fill="#0284c7" id="pt3" r="4.5" stroke="#ffffff" stroke-width="2"></circle>
+<circle class="chart-transition" cx="275" cy="153" fill="#0284c7" id="pt4" r="4.5" stroke="#ffffff" stroke-width="2"></circle>
+<circle class="chart-transition" cx="330" cy="151" fill="#0284c7" id="pt5" r="4.5" stroke="#ffffff" stroke-width="2"></circle>
+<circle class="chart-transition" cx="385" cy="89" fill="#0284c7" id="pt6" r="4.5" stroke="#ffffff" stroke-width="2"></circle>
+<circle class="chart-transition" cx="440" cy="154" fill="#0284c7" id="pt7" r="4.5" stroke="#ffffff" stroke-width="2"></circle>
+<circle class="chart-transition" cx="495" cy="156" fill="#0284c7" id="pt8" r="4.5" stroke="#ffffff" stroke-width="2"></circle>
+</g>
+<!-- Peak indicator badge in chart -->
+<g class="chart-transition" id="peakTagGroup" transform="translate(133, 1)">
+<rect fill="#0284c7" height="17" id="peakTagRect" rx="4" width="66" x="0" y="0"></rect>
+<text fill="#ffffff" font-family="monospace" font-size="9" font-weight="bold" id="peakTagText" text-anchor="middle" x="33" y="11.5">3,250 llam.</text>
+</g>
+<!-- X-Axis Labels -->
+<g id="xAxisLabelsGroup">
+<text fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle" x="60" y="233">08:00</text>
+<text fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle" x="112" y="233">09:00</text>
+<text fill="#38bdf8" font-family="monospace" font-size="10" font-weight="bold" id="xPeakLabel" text-anchor="middle" x="165" y="233">10:00</text>
+<text fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle" x="220" y="233">11:00</text>
+<text fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle" x="275" y="233">12:00</text>
+<text fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle" x="330" y="233">13:00</text>
+<text fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle" x="385" y="233">14:00</text>
+<text fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle" x="440" y="233">15:00</text>
+<text fill="#94a3b8" font-family="monospace" font-size="10" text-anchor="middle" x="495" y="233">16:00</text>
+</g>
+</svg>
+</div>
+</div>
+</div>
+<!-- Legend & Peak Quick Summary -->
+<div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 transition-colors duration-300" id="chartFooter">
+<span class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-sky-400 inline-block"></span>
+<span id="chartFooterLegend">Llamadas reales por hora</span>
+</span>
+<span class="font-mono text-slate-300 bg-slate-900 px-2.5 py-1 rounded border border-slate-800" id="chartPillFooter">Medición continua SIP</span>
+</div>
+</section>
+<!-- ================= COLUMN 2 (RIGHT TOP): Volumen por Operadora ================= -->
+<section class="bg-[#111827] rounded-2xl p-5 lg:p-6 border border-slate-800 shadow-xl flex flex-col justify-between transition-colors duration-300" data-purpose="operator-distribution" id="operatorSection">
+<div>
+<div class="flex items-center justify-between mb-4">
+<div>
+<h2 class="text-base font-bold text-white dark:text-white flex items-center gap-2 card-title">
+<svg aria-hidden="true" class="lucide lucide-radio w-5 h-5 text-emerald-400" data-lucide="radio" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M16.247 7.761a6 6 0 0 1 0 8.478"></path><path d="M19.075 4.933a10 10 0 0 1 0 14.134"></path><path d="M4.925 19.067a10 10 0 0 1 0-14.134"></path><path d="M7.753 16.239a6 6 0 0 1 0-8.478"></path><circle cx="12" cy="12" r="2"></circle></svg>
+                Volumen por Operadora
+              </h2>
+<p class="text-xs text-slate-400 mt-0.5 card-subtitle">Toca una operadora para filtrar el tráfico en todo el panel</p>
+</div>
+<div class="flex items-center gap-2">
+<button class="hidden text-xs bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 px-2.5 py-1 rounded font-mono font-medium border border-sky-500/30 transition cursor-pointer" id="resetOperatorBtn" onclick="resetActiveFilter()">
+    Ver Todas
+  </button>
+<span class="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded font-mono font-medium border border-slate-700/60 op-badge-top">
+    Top 7 Telcos
+  </span>
+</div>
+</div>
+<div class="bg-[#0d1322] p-4 rounded-xl border border-slate-800/80 space-y-2.5 transition-colors duration-300" id="operatorListContainer">
+<!-- Movistar Móvil -->
+<div class="operator-item p-2 rounded-lg cursor-pointer hover:bg-slate-800/60 transition border border-transparent" id="op-row-movistar_movil" onclick="selectOperator('movistar_movil')">
+<div class="flex justify-between items-center text-xs lg:text-sm">
+<div class="flex items-center gap-2">
+<span class="op-check hidden text-emerald-400 font-bold">✓</span>
+<span class="font-medium text-slate-200 op-name">Movistar Móvil</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-mono text-emerald-400 font-semibold op-val">29,123 <span class="text-slate-500 text-xs font-normal">(36.0%)</span></span>
+</div>
+</div>
+<div class="w-full bg-slate-800/90 h-2.5 rounded-full overflow-hidden mt-1.5 op-bar-bg">
+<div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" style="width: 100%;"></div>
+</div>
+</div>
+<!-- Digitel Móvil -->
+<div class="operator-item p-2 rounded-lg cursor-pointer hover:bg-slate-800/60 transition border border-transparent" id="op-row-digitel_movil" onclick="selectOperator('digitel_movil')">
+<div class="flex justify-between items-center text-xs lg:text-sm">
+<div class="flex items-center gap-2">
+<span class="op-check hidden text-emerald-400 font-bold">✓</span>
+<span class="font-medium text-slate-200 op-name">Digitel Móvil</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-mono text-emerald-400 font-semibold op-val">21,842 <span class="text-slate-500 text-xs font-normal">(27.0%)</span></span>
+</div>
+</div>
+<div class="w-full bg-slate-800/90 h-2.5 rounded-full overflow-hidden mt-1.5 op-bar-bg">
+<div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" style="width: 75%;"></div>
+</div>
+</div>
+<!-- Movilnet -->
+<div class="operator-item p-2 rounded-lg cursor-pointer hover:bg-slate-800/60 transition border border-transparent" id="op-row-movilnet" onclick="selectOperator('movilnet')">
+<div class="flex justify-between items-center text-xs lg:text-sm">
+<div class="flex items-center gap-2">
+<span class="op-check hidden text-emerald-400 font-bold">✓</span>
+<span class="font-medium text-slate-200 op-name">Movilnet</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-mono text-emerald-400 font-semibold op-val">14,561 <span class="text-slate-500 text-xs font-normal">(18.0%)</span></span>
+</div>
+</div>
+<div class="w-full bg-slate-800/90 h-2.5 rounded-full overflow-hidden mt-1.5 op-bar-bg">
+<div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" style="width: 50%;"></div>
+</div>
+</div>
+<!-- CANTV -->
+<div class="operator-item p-2 rounded-lg cursor-pointer hover:bg-slate-800/60 transition border border-transparent" id="op-row-cantv" onclick="selectOperator('cantv')">
+<div class="flex justify-between items-center text-xs lg:text-sm">
+<div class="flex items-center gap-2">
+<span class="op-check hidden text-emerald-400 font-bold">✓</span>
+<span class="font-medium text-slate-200 op-name">CANTV</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-mono text-emerald-400 font-semibold op-val">7,280 <span class="text-slate-500 text-xs font-normal">(9.0%)</span></span>
+</div>
+</div>
+<div class="w-full bg-slate-800/90 h-2.5 rounded-full overflow-hidden mt-1.5 op-bar-bg">
+<div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" style="width: 25%;"></div>
+</div>
+</div>
+<!-- NetUno -->
+<div class="operator-item p-2 rounded-lg cursor-pointer hover:bg-slate-800/60 transition border border-transparent" id="op-row-netuno" onclick="selectOperator('netuno')">
+<div class="flex justify-between items-center text-xs lg:text-sm">
+<div class="flex items-center gap-2">
+<span class="op-check hidden text-emerald-400 font-bold">✓</span>
+<span class="font-medium text-slate-200 op-name">NetUno</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-mono text-emerald-400 font-semibold op-val">3,640 <span class="text-slate-500 text-xs font-normal">(4.5%)</span></span>
+</div>
+</div>
+<div class="w-full bg-slate-800/90 h-2.5 rounded-full overflow-hidden mt-1.5 op-bar-bg">
+<div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" style="width: 14%;"></div>
+</div>
+</div>
+<!-- Digitel Fijo -->
+<div class="operator-item p-2 rounded-lg cursor-pointer hover:bg-slate-800/60 transition border border-transparent" id="op-row-digitel_fijo" onclick="selectOperator('digitel_fijo')">
+<div class="flex justify-between items-center text-xs lg:text-sm">
+<div class="flex items-center gap-2">
+<span class="op-check hidden text-emerald-400 font-bold">✓</span>
+<span class="font-medium text-slate-200 op-name">Digitel Fijo</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-mono text-emerald-400 font-semibold op-val">2,426 <span class="text-slate-500 text-xs font-normal">(3.0%)</span></span>
+</div>
+</div>
+<div class="w-full bg-slate-800/90 h-2.5 rounded-full overflow-hidden mt-1.5 op-bar-bg">
+<div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" style="width: 10%;"></div>
+</div>
+</div>
+<!-- Movistar Fijo -->
+<div class="operator-item p-2 rounded-lg cursor-pointer hover:bg-slate-800/60 transition border border-transparent" id="op-row-movistar_fijo" onclick="selectOperator('movistar_fijo')">
+<div class="flex justify-between items-center text-xs lg:text-sm">
+<div class="flex items-center gap-2">
+<span class="op-check hidden text-emerald-400 font-bold">✓</span>
+<span class="font-medium text-slate-200 op-name">Movistar Fijo</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-mono text-emerald-400 font-semibold op-val">2,026 <span class="text-slate-500 text-xs font-normal">(2.5%)</span></span>
+</div>
+</div>
+<div class="w-full bg-slate-800/90 h-2.5 rounded-full overflow-hidden mt-1.5 op-bar-bg">
+<div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" style="width: 8%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 transition-colors duration-300" id="operatorFooter">
+<span class="">Distribución porcentual sobre tráfico total</span>
+<span class="font-mono text-slate-300 op-footer-tag">Cobertura Nacional 100%</span>
+</div>
+</section>
+<!-- ================= COLUMN 1 (LEFT BOTTOM): Status General de Llamadas ================= -->
+<section class="bg-[#111827] rounded-2xl p-5 lg:p-6 border border-slate-800 shadow-xl transition-colors duration-300" data-purpose="status-distribution" id="statusSection">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-base font-bold text-white dark:text-white flex items-center gap-2 card-title">
+<svg aria-hidden="true" class="lucide lucide-pie-chart w-5 h-5 text-emerald-400" data-lucide="pie-chart" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"></path><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path></svg>
+            Status General de Llamadas
+          </h2>
+<span class="text-xs text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded border border-slate-700/60 font-mono transition-all" id="statusNCount">
+            N = 80,898
+          </span>
+</div>
+<!-- Donut Chart & Legend Stack in Desktop Horizontal Row -->
+<div class="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center bg-[#0d1322] p-5 rounded-xl border border-slate-800/80 transition-colors duration-300" id="statusContainer">
+<!-- SVG Donut Chart with Centered Total (5 Cols) -->
+<div class="sm:col-span-5 relative flex items-center justify-center py-2">
+<svg class="w-48 h-48 -rotate-90 transform" viewbox="0 0 120 120">
+<!-- Background Ring -->
+<circle cx="60" cy="60" fill="none" id="donutBgCircle" r="48" stroke="#1e293b" stroke-width="14"></circle>
+<!-- Segments (Circumference ~ 301.59):
+     1. ANSWERED (Blue)
+     2. NO ANSWER (Emerald)
+     3. BUSY (Amber)
+     4. FAILED (Rose)
+-->
+<circle class="donut-circle" cx="60" cy="60" fill="none" id="donutAnswered" r="48" stroke="#3b82f6" stroke-dasharray="196.03 301.59" stroke-dashoffset="0" stroke-width="14"></circle>
+<circle class="donut-circle" cx="60" cy="60" fill="none" id="donutNoAnswer" r="48" stroke="#10b981" stroke-dasharray="54.28 301.59" stroke-dashoffset="-196.03" stroke-width="14"></circle>
+<circle class="donut-circle" cx="60" cy="60" fill="none" id="donutBusy" r="48" stroke="#f59e0b" stroke-dasharray="30.16 301.59" stroke-dashoffset="-250.31" stroke-width="14"></circle>
+<circle class="donut-circle" cx="60" cy="60" fill="none" id="donutFailed" r="48" stroke="#ef4444" stroke-dasharray="21.11 301.59" stroke-dashoffset="-280.47" stroke-width="14"></circle>
+</svg>
+<!-- Donut Hole Content -->
+<div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+<span class="text-xs uppercase tracking-wider text-slate-400 font-medium" id="donutTotalLabel">Total</span>
+<span class="text-2xl font-black text-white dark:text-white font-mono leading-none my-0.5 num-fade" id="donutCenterTotal">80,898</span>
+<span class="text-[10px] text-emerald-400 font-semibold tracking-wide" id="donutSubtext">100% CDR</span>
+</div>
+</div>
+<!-- Detailed Status Breakdown List (7 Cols) -->
+<div class="sm:col-span-7 space-y-2.5">
+<!-- Answered -->
+<div class="status-card-item flex items-center justify-between p-2.5 rounded-lg bg-slate-900/90 border-l-4 border-blue-500 hover:bg-slate-900 transition duration-200">
+<div>
+<div class="font-bold text-white dark:text-white text-xs lg:text-sm flex items-center gap-1.5 status-item-name">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                  ANSWERED
+                </div>
+<span class="text-xs text-slate-400 font-mono num-fade" id="statusCountAnswered">52,584 llamadas</span>
+</div>
+<span class="font-mono font-bold text-blue-400 text-sm lg:text-base num-fade" id="statusPctAnswered">65%</span>
+</div>
+<!-- No Answer -->
+<div class="status-card-item flex items-center justify-between p-2.5 rounded-lg bg-slate-900/90 border-l-4 border-emerald-500 hover:bg-slate-900 transition duration-200">
+<div>
+<div class="font-bold text-white dark:text-white text-xs lg:text-sm flex items-center gap-1.5 status-item-name">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  NO ANSWER
+                </div>
+<span class="text-xs text-slate-400 font-mono num-fade" id="statusCountNoAnswer">14,562 llamadas</span>
+</div>
+<span class="font-mono font-bold text-emerald-400 text-sm lg:text-base num-fade" id="statusPctNoAnswer">18%</span>
+</div>
+<!-- Busy -->
+<div class="status-card-item flex items-center justify-between p-2.5 rounded-lg bg-slate-900/90 border-l-4 border-amber-500 hover:bg-slate-900 transition duration-200">
+<div>
+<div class="font-bold text-white dark:text-white text-xs lg:text-sm flex items-center gap-1.5 status-item-name">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                  BUSY
+                </div>
+<span class="text-xs text-slate-400 font-mono num-fade" id="statusCountBusy">8,090 llamadas</span>
+</div>
+<span class="font-mono font-bold text-amber-400 text-sm lg:text-base num-fade" id="statusPctBusy">10%</span>
+</div>
+<!-- Failed -->
+<div class="status-card-item flex items-center justify-between p-2.5 rounded-lg bg-slate-900/90 border-l-4 border-rose-500 hover:bg-slate-900 transition duration-200">
+<div>
+<div class="font-bold text-white dark:text-white text-xs lg:text-sm flex items-center gap-1.5 status-item-name">
+<span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                  FAILED
+                </div>
+<span class="text-xs text-slate-400 font-mono num-fade" id="statusCountFailed">5,662 llamadas</span>
+</div>
+<span class="font-mono font-bold text-rose-400 text-sm lg:text-base num-fade" id="statusPctFailed">7%</span>
+</div>
+</div>
+</div>
+</section>
+<!-- ================= COLUMN 2 (RIGHT BOTTOM): TOP TRUNKS UTILIZADOS ================= -->
+<section class="bg-[#111827] rounded-2xl p-5 lg:p-6 border border-slate-800 shadow-xl transition-colors duration-300" data-purpose="trunks-summary" id="trunksSection">
+<div class="flex items-center justify-between mb-4">
+<div>
+<h2 class="text-base font-bold text-white dark:text-white flex items-center gap-2 card-title">
+<svg aria-hidden="true" class="lucide lucide-server w-5 h-5 text-indigo-400" data-lucide="server" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><rect height="8" rx="2" ry="2" width="20" x="2" y="2"></rect><rect height="8" rx="2" ry="2" width="20" x="2" y="14"></rect><line x1="6" x2="6.01" y1="6" y2="6"></line><line x1="6" x2="6.01" y1="18" y2="18"></line></svg>
+              Top Trunks SIP Utilizados
+            </h2>
+<p class="text-xs text-slate-400 mt-0.5 card-subtitle">Troncales de mayor carga de sesión (haz clic para filtrar)</p>
+</div>
+<div class="flex items-center gap-2">
+<button class="hidden text-xs bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 px-2.5 py-1 rounded font-mono font-medium border border-indigo-500/30 transition cursor-pointer" id="resetTrunkBtn" onclick="resetActiveFilter()">
+    Ver Todos
+</button>
+<span class="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 rounded font-mono">
+            Asterisk PBX
+</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- ENTRANTES Card -->
+<div class="bg-[#0d1322] rounded-xl p-4 border border-slate-800/80 transition-colors duration-300" id="trunkBoxIn">
+<div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800 trunk-header-border">
+<div class="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+<svg aria-hidden="true" class="lucide lucide-arrow-down-left w-4 h-4" data-lucide="arrow-down-left" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M17 7 7 17"></path><path d="M17 17H7V7"></path></svg>
+                ENTRANTES
+              </div>
+<span class="text-xs font-mono text-slate-400 font-semibold bg-slate-800/60 px-2 py-0.5 rounded trunk-tag">
+                Total: 15 trunks
+              </span>
+</div>
+<div class="space-y-2 text-xs">
+<div class="trunk-item flex items-center justify-between py-1.5 px-2.5 bg-slate-900/60 rounded border border-slate-800/60 hover:border-emerald-500/50 hover:bg-slate-800/80 cursor-pointer select-none transition" id="trunk-row-in_caracas" onclick="selectTrunk('in_caracas')">
+<div class="flex items-center gap-1.5 truncate max-w-[150px] lg:max-w-[170px]">
+<span class="trunk-check hidden text-emerald-400 font-bold text-xs">✓</span>
+<span class="font-mono text-slate-300 font-medium truncate trunk-name">SIP/TrunkCaracas</span>
+</div>
+<span class="bg-blue-600/30 text-blue-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded border border-blue-500/30 trunk-ch-badge">6 ch</span>
+</div>
+<div class="trunk-item flex items-center justify-between py-1.5 px-2.5 bg-slate-900/60 rounded border border-slate-800/60 hover:border-emerald-500/50 hover:bg-slate-800/80 cursor-pointer select-none transition" id="trunk-row-in_maracaibo" onclick="selectTrunk('in_maracaibo')">
+<div class="flex items-center gap-1.5 truncate max-w-[150px] lg:max-w-[170px]">
+<span class="trunk-check hidden text-emerald-400 font-bold text-xs">✓</span>
+<span class="font-mono text-slate-300 font-medium truncate trunk-name">SIP/TrunkMaracaibo</span>
+</div>
+<span class="bg-blue-600/30 text-blue-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded border border-blue-500/30 trunk-ch-badge">3 ch</span>
+</div>
+<div class="trunk-item flex items-center justify-between py-1.5 px-2.5 bg-slate-900/60 rounded border border-slate-800/60 hover:border-emerald-500/50 hover:bg-slate-800/80 cursor-pointer select-none transition" id="trunk-row-in_valencia" onclick="selectTrunk('in_valencia')">
+<div class="flex items-center gap-1.5 truncate max-w-[150px] lg:max-w-[170px]">
+<span class="trunk-check hidden text-emerald-400 font-bold text-xs">✓</span>
+<span class="font-mono text-slate-300 font-medium truncate trunk-name">SIP/TrunkValencia</span>
+</div>
+<span class="bg-blue-600/30 text-blue-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded border border-blue-500/30 trunk-ch-badge">3 ch</span>
+</div>
+<div class="trunk-item flex items-center justify-between py-1.5 px-2.5 bg-slate-900/60 rounded border border-slate-800/60 hover:border-emerald-500/50 hover:bg-slate-800/80 cursor-pointer select-none transition" id="trunk-row-in_barquisimeto" onclick="selectTrunk('in_barquisimeto')">
+<div class="flex items-center gap-1.5 truncate max-w-[150px] lg:max-w-[170px]">
+<span class="trunk-check hidden text-emerald-400 font-bold text-xs">✓</span>
+<span class="font-mono text-slate-300 font-medium truncate trunk-name">SIP/TrunkBarquisimeto</span>
+</div>
+<span class="bg-blue-600/30 text-blue-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded border border-blue-500/30 trunk-ch-badge">2 ch</span>
+</div>
+<div class="trunk-item flex items-center justify-between py-1.5 px-2.5 bg-slate-900/60 rounded border border-slate-800/60 hover:border-emerald-500/50 hover:bg-slate-800/80 cursor-pointer select-none transition" id="trunk-row-in_puertoordaz" onclick="selectTrunk('in_puertoordaz')">
+<div class="flex items-center gap-1.5 truncate max-w-[150px] lg:max-w-[170px]">
+<span class="trunk-check hidden text-emerald-400 font-bold text-xs">✓</span>
+<span class="font-mono text-slate-300 font-medium truncate trunk-name">SIP/TrunkPuertoOrdaz</span>
+</div>
+<span class="bg-blue-600/30 text-blue-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded border border-blue-500/30 trunk-ch-badge">1 ch</span>
+</div>
+</div>
+</div>
+<!-- SALIENTES Card -->
+<div class="bg-[#0d1322] rounded-xl p-4 border border-slate-800/80 transition-colors duration-300" id="trunkBoxOut">
+<div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800 trunk-header-border">
+<div class="flex items-center gap-1.5 text-xs font-bold text-sky-400">
+<svg aria-hidden="true" class="lucide lucide-arrow-up-right w-4 h-4" data-lucide="arrow-up-right" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg>
+                SALIENTES
+              </div>
+<span class="text-xs font-mono text-slate-400 font-semibold bg-slate-800/60 px-2 py-0.5 rounded trunk-tag">
+                Total: 15 trunks
+              </span>
+</div>
+<div class="space-y-2 text-xs">
+<div class="trunk-item flex items-center justify-between py-1.5 px-2.5 bg-slate-900/60 rounded border border-slate-800/60 hover:border-sky-500/50 hover:bg-slate-800/80 cursor-pointer select-none transition" id="trunk-row-out_movistar" onclick="selectTrunk('out_movistar')">
+<div class="flex items-center gap-1.5 truncate max-w-[150px] lg:max-w-[170px]">
+<span class="trunk-check hidden text-sky-400 font-bold text-xs">✓</span>
+<span class="font-mono text-slate-300 font-medium truncate trunk-name">SIP/OutMovistar</span>
+</div>
+<span class="bg-emerald-600/30 text-emerald-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded border border-emerald-500/30 trunk-ch-badge">5 ch</span>
+</div>
+<div class="trunk-item flex items-center justify-between py-1.5 px-2.5 bg-slate-900/60 rounded border border-slate-800/60 hover:border-sky-500/50 hover:bg-slate-800/80 cursor-pointer select-none transition" id="trunk-row-out_digitel" onclick="selectTrunk('out_digitel')">
+<div class="flex items-center gap-1.5 truncate max-w-[150px] lg:max-w-[170px]">
+<span class="trunk-check hidden text-sky-400 font-bold text-xs">✓</span>
+<span class="font-mono text-slate-300 font-medium truncate trunk-name">SIP/OutDigitel</span>
+</div>
+<span class="bg-emerald-600/30 text-emerald-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded border border-emerald-500/30 trunk-ch-badge">4 ch</span>
+</div>
+<div class="trunk-item flex items-center justify-between py-1.5 px-2.5 bg-slate-900/60 rounded border border-slate-800/60 hover:border-sky-500/50 hover:bg-slate-800/80 cursor-pointer select-none transition" id="trunk-row-out_movilnet" onclick="selectTrunk('out_movilnet')">
+<div class="flex items-center gap-1.5 truncate max-w-[150px] lg:max-w-[170px]">
+<span class="trunk-check hidden text-sky-400 font-bold text-xs">✓</span>
+<span class="font-mono text-slate-300 font-medium truncate trunk-name">SIP/OutMovilnet</span>
+</div>
+<span class="bg-emerald-600/30 text-emerald-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded border border-emerald-500/30 trunk-ch-badge">3 ch</span>
+</div>
+<div class="trunk-item flex items-center justify-between py-1.5 px-2.5 bg-slate-900/60 rounded border border-slate-800/60 hover:border-sky-500/50 hover:bg-slate-800/80 cursor-pointer select-none transition" id="trunk-row-out_cantv" onclick="selectTrunk('out_cantv')">
+<div class="flex items-center gap-1.5 truncate max-w-[150px] lg:max-w-[170px]">
+<span class="trunk-check hidden text-sky-400 font-bold text-xs">✓</span>
+<span class="font-mono text-slate-300 font-medium truncate trunk-name">SIP/OutCANTV</span>
+</div>
+<span class="bg-emerald-600/30 text-emerald-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded border border-emerald-500/30 trunk-ch-badge">2 ch</span>
+</div>
+<div class="trunk-item flex items-center justify-between py-1.5 px-2.5 bg-slate-900/60 rounded border border-slate-800/60 hover:border-sky-500/50 hover:bg-slate-800/80 cursor-pointer select-none transition" id="trunk-row-out_netuno" onclick="selectTrunk('out_netuno')">
+<div class="flex items-center gap-1.5 truncate max-w-[150px] lg:max-w-[170px]">
+<span class="trunk-check hidden text-sky-400 font-bold text-xs">✓</span>
+<span class="font-mono text-slate-300 font-medium truncate trunk-name">SIP/OutNetUno</span>
+</div>
+<span class="bg-emerald-600/30 text-emerald-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded border border-emerald-500/30 trunk-ch-badge">1 ch</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- END: Main Dashboard Grid -->
+<!-- BEGIN: Desktop Footer -->
+<footer class="mt-8 pt-6 border-t border-slate-800/80 flex flex-col md:flex-row items-center justify-between text-slate-500 text-xs gap-3 pb-6 transition-colors duration-300" data-purpose="desktop-footer" id="mainFooter">
+<div class="flex items-center gap-2">
+<svg aria-hidden="true" class="lucide lucide-shield-check w-4 h-4 text-emerald-400" data-lucide="shield-check" fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg>
+<span class="">Asterisk VoIP Gateway v18.15.0 LTS</span>
+<span class="text-slate-600">•</span>
+<span class="text-emerald-400/90 font-mono">Latencia: 18ms</span>
+</div>
+<div class="">
+  © 2024 Telecom CDR Engine. Sincronizado en tiempo real.
+</div>
+</footer>
+<!-- END: Desktop Footer -->
+</div>
+<!-- END: Desktop Layout Shell -->
+<!-- Script for Interactive Dashboard & Light/Dark Theme -->
+<script data-purpose="interactive-dashboard-script">
+  // =================== DATA STORE FOR OPERATORS ===================
+  const OPERATOR_DATA = {
+    all: {
+      name: "Todas las Operadoras",
+      filterType: "operator",
+      totalCalls: 80898,
+      inbound: 48539,
+      outbound: 32359,
+      inboundPct: 60,
+      outboundPct: 40,
+      peakText: "Pico: 3,250 @ 10:00",
+      peakValText: "3,250 llam.",
+      peakHourIndex: 2, // 10:00
+      yScaleMax: 3000,
+      yLabels: ["3,000", "2,000", "1,000", "0"],
+      hourlyValues: [2040, 2110, 3250, 2080, 1020, 1050, 2100, 1010, 980],
+      status: {
+        answered: { count: 52584, pct: 65 },
+        noAnswer: { count: 14562, pct: 18 },
+        busy: { count: 8090, pct: 10 },
+        failed: { count: 5662, pct: 7 }
+      }
+    },
+    movistar_movil: {
+      name: "Movistar Móvil",
+      filterType: "operator",
+      totalCalls: 29123,
+      inbound: 17474,
+      outbound: 11649,
+      inboundPct: 60,
+      outboundPct: 40,
+      peakText: "Pico: 1,170 @ 10:00",
+      peakValText: "1,170 llam.",
+      peakHourIndex: 2,
+      yScaleMax: 1200,
+      yLabels: ["1,200", "800", "400", "0"],
+      hourlyValues: [734, 760, 1170, 749, 367, 378, 756, 364, 353],
+      status: {
+        answered: { count: 19512, pct: 67 },
+        noAnswer: { count: 4951, pct: 17 },
+        busy: { count: 2621, pct: 9 },
+        failed: { count: 2039, pct: 7 }
+      }
+    },
+    digitel_movil: {
+      name: "Digitel Móvil",
+      filterType: "operator",
+      totalCalls: 21842,
+      inbound: 13542,
+      outbound: 8300,
+      inboundPct: 62,
+      outboundPct: 38,
+      peakText: "Pico: 890 @ 10:00",
+      peakValText: "890 llam.",
+      peakHourIndex: 2,
+      yScaleMax: 900,
+      yLabels: ["900", "600", "300", "0"],
+      hourlyValues: [551, 570, 890, 562, 275, 284, 567, 273, 265],
+      status: {
+        answered: { count: 13979, pct: 64 },
+        noAnswer: { count: 4150, pct: 19 },
+        busy: { count: 2402, pct: 11 },
+        failed: { count: 1311, pct: 6 }
+      }
+    },
+    movilnet: {
+      name: "Movilnet",
+      filterType: "operator",
+      totalCalls: 14561,
+      inbound: 8445,
+      outbound: 6116,
+      inboundPct: 58,
+      outboundPct: 42,
+      peakText: "Pico: 585 @ 10:00",
+      peakValText: "585 llam.",
+      peakHourIndex: 2,
+      yScaleMax: 600,
+      yLabels: ["600", "400", "200", "0"],
+      hourlyValues: [367, 380, 585, 374, 184, 189, 378, 182, 176],
+      status: {
+        answered: { count: 9173, pct: 63 },
+        noAnswer: { count: 2767, pct: 19 },
+        busy: { count: 1602, pct: 11 },
+        failed: { count: 1019, pct: 7 }
+      }
+    },
+    cantv: {
+      name: "CANTV",
+      filterType: "operator",
+      totalCalls: 7280,
+      inbound: 4514,
+      outbound: 2766,
+      inboundPct: 62,
+      outboundPct: 38,
+      peakText: "Pico: 310 @ 14:00",
+      peakValText: "310 llam.",
+      peakHourIndex: 6,
+      yScaleMax: 350,
+      yLabels: ["350", "230", "110", "0"],
+      hourlyValues: [180, 195, 280, 190, 92, 105, 310, 95, 88],
+      status: {
+        answered: { count: 4514, pct: 62 },
+        noAnswer: { count: 1456, pct: 20 },
+        busy: { count: 728, pct: 10 },
+        failed: { count: 582, pct: 8 }
+      }
+    },
+    netuno: {
+      name: "NetUno",
+      filterType: "operator",
+      totalCalls: 3640,
+      inbound: 2111,
+      outbound: 1529,
+      inboundPct: 58,
+      outboundPct: 42,
+      peakText: "Pico: 160 @ 11:00",
+      peakValText: "160 llam.",
+      peakHourIndex: 3,
+      yScaleMax: 180,
+      yLabels: ["180", "120", "60", "0"],
+      hourlyValues: [92, 98, 145, 160, 48, 52, 96, 45, 42],
+      status: {
+        answered: { count: 2475, pct: 68 },
+        noAnswer: { count: 582, pct: 16 },
+        busy: { count: 328, pct: 9 },
+        failed: { count: 255, pct: 7 }
+      }
+    },
+    digitel_fijo: {
+      name: "Digitel Fijo",
+      filterType: "operator",
+      totalCalls: 2426,
+      inbound: 1480,
+      outbound: 946,
+      inboundPct: 61,
+      outboundPct: 39,
+      peakText: "Pico: 108 @ 09:00",
+      peakValText: "108 llam.",
+      peakHourIndex: 1,
+      yScaleMax: 120,
+      yLabels: ["120", "80", "40", "0"],
+      hourlyValues: [62, 108, 98, 64, 32, 35, 63, 31, 29],
+      status: {
+        answered: { count: 1601, pct: 66 },
+        noAnswer: { count: 412, pct: 17 },
+        busy: { count: 243, pct: 10 },
+        failed: { count: 170, pct: 7 }
+      }
+    },
+    movistar_fijo: {
+      name: "Movistar Fijo",
+      filterType: "operator",
+      totalCalls: 2026,
+      inbound: 1236,
+      outbound: 790,
+      inboundPct: 61,
+      outboundPct: 39,
+      peakText: "Pico: 92 @ 14:00",
+      peakValText: "92 llam.",
+      peakHourIndex: 6,
+      yScaleMax: 100,
+      yLabels: ["100", "65", "30", "0"],
+      hourlyValues: [51, 53, 82, 52, 26, 27, 92, 25, 24],
+      status: {
+        answered: { count: 1337, pct: 66 },
+        noAnswer: { count: 344, pct: 17 },
+        busy: { count: 203, pct: 10 },
+        failed: { count: 142, pct: 7 }
+      }
+    }
+  };
+
+  // =================== DATA STORE FOR SIP TRUNKS ===================
+  const TRUNK_DATA = {
+    // ENTRANTES
+    in_caracas: {
+      name: "SIP/TrunkCaracas",
+      direction: "inbound",
+      directionLabel: "Entrante",
+      channels: "6 ch",
+      totalCalls: 19415,
+      inbound: 19415,
+      outbound: 0,
+      inboundPct: 100,
+      outboundPct: 0,
+      peakText: "Pico: 1,320 @ 10:00",
+      peakValText: "1,320 llam.",
+      peakHourIndex: 2,
+      yScaleMax: 1400,
+      yLabels: ["1,400", "950", "450", "0"],
+      hourlyValues: [510, 840, 1320, 890, 410, 430, 880, 420, 395],
+      status: {
+        answered: { count: 13202, pct: 68 },
+        noAnswer: { count: 3106, pct: 16 },
+        busy: { count: 1942, pct: 10 },
+        failed: { count: 1165, pct: 6 }
+      }
+    },
+    in_maracaibo: {
+      name: "SIP/TrunkMaracaibo",
+      direction: "inbound",
+      directionLabel: "Entrante",
+      channels: "3 ch",
+      totalCalls: 10250,
+      inbound: 10250,
+      outbound: 0,
+      inboundPct: 100,
+      outboundPct: 0,
+      peakText: "Pico: 680 @ 11:00",
+      peakValText: "680 llam.",
+      peakHourIndex: 3,
+      yScaleMax: 700,
+      yLabels: ["700", "470", "230", "0"],
+      hourlyValues: [260, 410, 620, 680, 220, 235, 460, 210, 195],
+      status: {
+        answered: { count: 6663, pct: 65 },
+        noAnswer: { count: 1947, pct: 19 },
+        busy: { count: 923, pct: 9 },
+        failed: { count: 717, pct: 7 }
+      }
+    },
+    in_valencia: {
+      name: "SIP/TrunkValencia",
+      direction: "inbound",
+      directionLabel: "Entrante",
+      channels: "3 ch",
+      totalCalls: 9800,
+      inbound: 9800,
+      outbound: 0,
+      inboundPct: 100,
+      outboundPct: 0,
+      peakText: "Pico: 640 @ 10:00",
+      peakValText: "640 llam.",
+      peakHourIndex: 2,
+      yScaleMax: 650,
+      yLabels: ["650", "430", "215", "0"],
+      hourlyValues: [245, 390, 640, 410, 210, 220, 430, 205, 190],
+      status: {
+        answered: { count: 6272, pct: 64 },
+        noAnswer: { count: 1862, pct: 19 },
+        busy: { count: 980, pct: 10 },
+        failed: { count: 686, pct: 7 }
+      }
+    },
+    in_barquisimeto: {
+      name: "SIP/TrunkBarquisimeto",
+      direction: "inbound",
+      directionLabel: "Entrante",
+      channels: "2 ch",
+      totalCalls: 5850,
+      inbound: 5850,
+      outbound: 0,
+      inboundPct: 100,
+      outboundPct: 0,
+      peakText: "Pico: 390 @ 14:00",
+      peakValText: "390 llam.",
+      peakHourIndex: 6,
+      yScaleMax: 400,
+      yLabels: ["400", "270", "130", "0"],
+      hourlyValues: [145, 230, 360, 240, 120, 130, 390, 125, 110],
+      status: {
+        answered: { count: 3861, pct: 66 },
+        noAnswer: { count: 994, pct: 17 },
+        busy: { count: 585, pct: 10 },
+        failed: { count: 410, pct: 7 }
+      }
+    },
+    in_puertoordaz: {
+      name: "SIP/TrunkPuertoOrdaz",
+      direction: "inbound",
+      directionLabel: "Entrante",
+      channels: "1 ch",
+      totalCalls: 3224,
+      inbound: 3224,
+      outbound: 0,
+      inboundPct: 100,
+      outboundPct: 0,
+      peakText: "Pico: 215 @ 09:00",
+      peakValText: "215 llam.",
+      peakHourIndex: 1,
+      yScaleMax: 220,
+      yLabels: ["220", "150", "75", "0"],
+      hourlyValues: [85, 215, 195, 135, 70, 75, 130, 68, 60],
+      status: {
+        answered: { count: 2031, pct: 63 },
+        noAnswer: { count: 645, pct: 20 },
+        busy: { count: 322, pct: 10 },
+        failed: { count: 226, pct: 7 }
+      }
+    },
+    // SALIENTES
+    out_movistar: {
+      name: "SIP/OutMovistar",
+      direction: "outbound",
+      directionLabel: "Saliente",
+      channels: "5 ch",
+      totalCalls: 12850,
+      inbound: 0,
+      outbound: 12850,
+      inboundPct: 0,
+      outboundPct: 100,
+      peakText: "Pico: 890 @ 10:00",
+      peakValText: "890 llam.",
+      peakHourIndex: 2,
+      yScaleMax: 900,
+      yLabels: ["900", "600", "300", "0"],
+      hourlyValues: [320, 520, 890, 540, 260, 275, 530, 255, 240],
+      status: {
+        answered: { count: 8738, pct: 68 },
+        noAnswer: { count: 2056, pct: 16 },
+        busy: { count: 1285, pct: 10 },
+        failed: { count: 771, pct: 6 }
+      }
+    },
+    out_digitel: {
+      name: "SIP/OutDigitel",
+      direction: "outbound",
+      directionLabel: "Saliente",
+      channels: "4 ch",
+      totalCalls: 9650,
+      inbound: 0,
+      outbound: 9650,
+      inboundPct: 0,
+      outboundPct: 100,
+      peakText: "Pico: 670 @ 10:00",
+      peakValText: "670 llam.",
+      peakHourIndex: 2,
+      yScaleMax: 700,
+      yLabels: ["700", "470", "230", "0"],
+      hourlyValues: [240, 390, 670, 405, 195, 205, 400, 190, 180],
+      status: {
+        answered: { count: 6272, pct: 65 },
+        noAnswer: { count: 1737, pct: 18 },
+        busy: { count: 1062, pct: 11 },
+        failed: { count: 579, pct: 6 }
+      }
+    },
+    out_movilnet: {
+      name: "SIP/OutMovilnet",
+      direction: "outbound",
+      directionLabel: "Saliente",
+      channels: "3 ch",
+      totalCalls: 5420,
+      inbound: 0,
+      outbound: 5420,
+      inboundPct: 0,
+      outboundPct: 100,
+      peakText: "Pico: 375 @ 14:00",
+      peakValText: "375 llam.",
+      peakHourIndex: 6,
+      yScaleMax: 400,
+      yLabels: ["400", "270", "130", "0"],
+      hourlyValues: [135, 220, 340, 230, 110, 120, 375, 115, 105],
+      status: {
+        answered: { count: 3360, pct: 62 },
+        noAnswer: { count: 1084, pct: 20 },
+        busy: { count: 596, pct: 11 },
+        failed: { count: 380, pct: 7 }
+      }
+    },
+    out_cantv: {
+      name: "SIP/OutCANTV",
+      direction: "outbound",
+      directionLabel: "Saliente",
+      channels: "2 ch",
+      totalCalls: 2840,
+      inbound: 0,
+      outbound: 2840,
+      inboundPct: 0,
+      outboundPct: 100,
+      peakText: "Pico: 205 @ 11:00",
+      peakValText: "205 llam.",
+      peakHourIndex: 3,
+      yScaleMax: 220,
+      yLabels: ["220", "150", "75", "0"],
+      hourlyValues: [70, 115, 180, 205, 60, 65, 125, 58, 52],
+      status: {
+        answered: { count: 1818, pct: 64 },
+        noAnswer: { count: 511, pct: 18 },
+        busy: { count: 284, pct: 10 },
+        failed: { count: 227, pct: 8 }
+      }
+    },
+    out_netuno: {
+      name: "SIP/OutNetUno",
+      direction: "outbound",
+      directionLabel: "Saliente",
+      channels: "1 ch",
+      totalCalls: 1599,
+      inbound: 0,
+      outbound: 1599,
+      inboundPct: 0,
+      outboundPct: 100,
+      peakText: "Pico: 112 @ 09:00",
+      peakValText: "112 llam.",
+      peakHourIndex: 1,
+      yScaleMax: 120,
+      yLabels: ["120", "80", "40", "0"],
+      hourlyValues: [40, 112, 102, 70, 32, 36, 68, 33, 28],
+      status: {
+        answered: { count: 1071, pct: 67 },
+        noAnswer: { count: 272, pct: 17 },
+        busy: { count: 144, pct: 9 },
+        failed: { count: 112, pct: 7 }
+      }
+    }
+  };
+
+  // State Management
+  let activeFilterType = 'none'; // 'none' | 'operator' | 'trunk'
+  let activeFilterKey = null;
+  let isDarkMode = true;
+
+  // Formatting helper
+  function formatNum(num) {
+    return num.toLocaleString('en-US');
+  }
+
+  // =================== FILTER HANDLERS ===================
+  function selectOperator(key) {
+    if (activeFilterType === 'operator' && activeFilterKey === key) {
+      resetActiveFilter();
+      return;
+    }
+    activeFilterType = 'operator';
+    activeFilterKey = key;
+    renderUI();
+  }
+
+  function selectTrunk(key) {
+    if (activeFilterType === 'trunk' && activeFilterKey === key) {
+      resetActiveFilter();
+      return;
+    }
+    activeFilterType = 'trunk';
+    activeFilterKey = key;
+    renderUI();
+  }
+
+  function resetActiveFilter() {
+    activeFilterType = 'none';
+    activeFilterKey = null;
+    renderUI();
+  }
+
+  function resetOperatorFilter() {
+    resetActiveFilter();
+  }
+
+  // =================== UNIFIED UI RENDERER ===================
+  function renderUI() {
+    let data;
+    if (activeFilterType === 'operator') {
+      data = OPERATOR_DATA[activeFilterKey];
+    } else if (activeFilterType === 'trunk') {
+      data = TRUNK_DATA[activeFilterKey];
+    } else {
+      data = OPERATOR_DATA['all'];
+    }
+
+    const isFiltered = activeFilterType !== 'none';
+
+    // 1. Update filter notification banner
+    const banner = document.getElementById('filterBanner');
+    const bannerName = document.getElementById('filterBannerName');
+    const bannerDetails = document.getElementById('filterBannerDetails');
+    const resetOpBtn = document.getElementById('resetOperatorBtn');
+    const resetTrkBtn = document.getElementById('resetTrunkBtn');
+
+    if (isFiltered) {
+      banner.classList.remove('hidden');
+      if (activeFilterType === 'operator') {
+        bannerName.textContent = data.name;
+        bannerDetails.textContent = `— Operadora Telco: Métricas y flujo recalculados`;
+        resetOpBtn.classList.remove('hidden');
+        resetTrkBtn.classList.add('hidden');
+      } else {
+        bannerName.textContent = `${data.name} (${data.directionLabel})`;
+        bannerDetails.textContent = `— Troncal Asterisk ${data.channels}: Métricas y flujo horaria de sesión`;
+        resetOpBtn.classList.add('hidden');
+        resetTrkBtn.classList.remove('hidden');
+      }
+    } else {
+      banner.classList.add('hidden');
+      resetOpBtn.classList.add('hidden');
+      resetTrkBtn.classList.add('hidden');
+    }
+
+    // 2. Highlight operator list rows
+    const opKeys = ['movistar_movil', 'digitel_movil', 'movilnet', 'cantv', 'netuno', 'digitel_fijo', 'movistar_fijo'];
+    opKeys.forEach(k => {
+      const row = document.getElementById(`op-row-${k}`);
+      if (!row) return;
+      const check = row.querySelector('.op-check');
+      if (activeFilterType === 'operator' && k === activeFilterKey) {
+        row.classList.add('bg-blue-600/20', 'border-sky-500/60', 'ring-1', 'ring-sky-500/40');
+        row.classList.remove('border-transparent');
+        if (check) check.classList.remove('hidden');
+      } else {
+        row.classList.remove('bg-blue-600/20', 'border-sky-500/60', 'ring-1', 'ring-sky-500/40');
+        row.classList.add('border-transparent');
+        if (check) check.classList.add('hidden');
+      }
+    });
+
+    // 3. Highlight trunk items
+    const trunkKeys = ['in_caracas', 'in_maracaibo', 'in_valencia', 'in_barquisimeto', 'in_puertoordaz', 'out_movistar', 'out_digitel', 'out_movilnet', 'out_cantv', 'out_netuno'];
+    trunkKeys.forEach(tk => {
+      const row = document.getElementById(`trunk-row-${tk}`);
+      if (!row) return;
+      const check = row.querySelector('.trunk-check');
+      const isSelected = (activeFilterType === 'trunk' && tk === activeFilterKey);
+
+      if (isSelected) {
+        if (tk.startsWith('in_')) {
+          row.classList.add('bg-emerald-500/20', 'border-emerald-500/80', 'ring-1', 'ring-emerald-400/50');
+        } else {
+          row.classList.add('bg-sky-500/20', 'border-sky-500/80', 'ring-1', 'ring-sky-400/50');
+        }
+        if (check) check.classList.remove('hidden');
+      } else {
+        row.classList.remove('bg-emerald-500/20', 'border-emerald-500/80', 'ring-1', 'ring-emerald-400/50', 'bg-sky-500/20', 'border-sky-500/80', 'ring-1', 'ring-sky-400/50');
+        if (check) check.classList.add('hidden');
+      }
+    });
+
+    // 4. Update Primary KPI Hero Card
+    const totalCallsEl = document.getElementById('totalCallsNumber');
+    const inboundEl = document.getElementById('inboundNumber');
+    const outboundEl = document.getElementById('outboundNumber');
+    const inboundPctEl = document.getElementById('inboundPercent');
+    const outboundPctEl = document.getElementById('outboundPercent');
+    const inboundBar = document.getElementById('inboundBar');
+    const outboundBar = document.getElementById('outboundBar');
+    const kpiHeroLabel = document.getElementById('kpiHeroLabel');
+    const kpiSubtext = document.getElementById('kpiSubtext');
+
+    totalCallsEl.textContent = formatNum(data.totalCalls);
+    inboundEl.textContent = formatNum(data.inbound);
+    outboundEl.textContent = formatNum(data.outbound);
+    inboundPctEl.textContent = `${data.inboundPct}%`;
+    outboundPctEl.textContent = `${data.outboundPct}%`;
+    inboundBar.style.width = `${data.inboundPct}%`;
+    outboundBar.style.width = `${data.outboundPct}%`;
+
+    if (activeFilterType === 'operator') {
+      kpiHeroLabel.textContent = `Llamadas Diarias — ${data.name}`;
+      kpiSubtext.textContent = `Filtrado por operador: ${data.name} (haz clic para restablecer)`;
+    } else if (activeFilterType === 'trunk') {
+      kpiHeroLabel.textContent = `Tráfico SIP — ${data.name}`;
+      kpiSubtext.textContent = `Troncal ${data.directionLabel} (${data.channels}) • Asterisk VoIP Gateway`;
+    } else {
+      kpiHeroLabel.textContent = `Total de Llamadas Diarias`;
+      kpiSubtext.textContent = `Consolidado general de tráfico en tiempo real`;
+    }
+
+    // 5. Update Chart Section
+    document.getElementById('chartPeakBadge').textContent = data.peakText;
+    document.getElementById('yLabel3').textContent = data.yLabels[0];
+    document.getElementById('yLabel2').textContent = data.yLabels[1];
+    document.getElementById('yLabel1').textContent = data.yLabels[2];
+    document.getElementById('yLabel0').textContent = data.yLabels[3];
+
+    // Compute SVG coordinates dynamically based on hourlyValues & yScaleMax
+    updateSvgChart(data);
+
+    // 6. Update Donut Chart & Breakdown
+    updateDonutChart(data);
+  }
+
+  function updateSvgChart(data) {
+    const xCoords = [60, 112, 165, 220, 275, 330, 385, 440, 495];
+    const topY = 25; // max visual height
+    const baseY = 215; // baseline y
+    const availableHeight = baseY - topY;
+
+    // Calculate Y for each point
+    const pts = data.hourlyValues.map((v, i) => {
+      const ratio = Math.min(1, Math.max(0, v / data.yScaleMax));
+      const y = baseY - (ratio * availableHeight);
+      return { x: xCoords[i], y: Math.round(y) };
+    });
+
+    // Build smooth cubic bezier path
+    let lineD = `M ${pts[0].x},${pts[0].y}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i];
+      const p1 = pts[i + 1];
+      const mx = (p0.x + p1.x) / 2;
+      lineD += ` C ${mx},${p0.y} ${mx},${p1.y} ${p1.x},${p1.y}`;
+    }
+    const areaD = `${lineD} L ${pts[pts.length - 1].x},${baseY} L ${pts[0].x},${baseY} Z`;
+
+    const svgLine = document.getElementById('svgLinePath');
+    const svgArea = document.getElementById('svgAreaPath');
+    if (svgLine && svgArea) {
+      svgLine.setAttribute('d', lineD);
+      svgArea.setAttribute('d', areaD);
+    }
+
+    // Update circles
+    pts.forEach((pt, idx) => {
+      const circle = document.getElementById(`pt${idx}`);
+      if (circle) {
+        circle.setAttribute('cx', pt.x);
+        circle.setAttribute('cy', pt.y);
+        if (idx === data.peakHourIndex) {
+          circle.setAttribute('r', '6.5');
+          circle.setAttribute('fill', '#38bdf8');
+          circle.classList.add('status-pulse');
+        } else {
+          circle.setAttribute('r', '4.5');
+          circle.setAttribute('fill', '#0284c7');
+          circle.classList.remove('status-pulse');
+        }
+      }
+    });
+
+    // Update peak badge tag over the peak point
+    const peakIdx = data.peakHourIndex;
+    const peakPt = pts[peakIdx];
+    const tagGroup = document.getElementById('peakTagGroup');
+    const tagText = document.getElementById('peakTagText');
+    const tagRect = document.getElementById('peakTagRect');
+    if (tagGroup && tagText && tagRect) {
+      tagText.textContent = data.peakValText;
+      const tagX = Math.max(48, Math.min(440, peakPt.x - 33));
+      const tagY = Math.max(2, peakPt.y - 23);
+      tagGroup.setAttribute('transform', `translate(${tagX}, ${tagY})`);
+    }
+
+    // Update x-axis highlighted label
+    const xLabels = document.querySelectorAll('#xAxisLabelsGroup text');
+    xLabels.forEach((label, idx) => {
+      if (idx === peakIdx) {
+        label.setAttribute('fill', '#38bdf8');
+        label.setAttribute('font-weight', 'bold');
+      } else {
+        label.setAttribute('fill', isDarkMode ? '#94a3b8' : '#64748b');
+        label.setAttribute('font-weight', 'normal');
+      }
+    });
+  }
+
+  function updateDonutChart(data) {
+    const circum = 301.59;
+    const st = data.status;
+
+    // Segment lengths
+    const lenAns = (st.answered.pct / 100) * circum;
+    const lenNo = (st.noAnswer.pct / 100) * circum;
+    const lenBusy = (st.busy.pct / 100) * circum;
+    const lenFail = (st.failed.pct / 100) * circum;
+
+    // Offsets
+    const offAns = 0;
+    const offNo = -lenAns;
+    const offBusy = -(lenAns + lenNo);
+    const offFail = -(lenAns + lenNo + lenBusy);
+
+    const cAns = document.getElementById('donutAnswered');
+    const cNo = document.getElementById('donutNoAnswer');
+    const cBusy = document.getElementById('donutBusy');
+    const cFail = document.getElementById('donutFailed');
+
+    if (cAns) {
+      cAns.setAttribute('stroke-dasharray', `${lenAns.toFixed(2)} ${circum}`);
+      cAns.setAttribute('stroke-dashoffset', offAns);
+    }
+    if (cNo) {
+      cNo.setAttribute('stroke-dasharray', `${lenNo.toFixed(2)} ${circum}`);
+      cNo.setAttribute('stroke-dashoffset', offNo.toFixed(2));
+    }
+    if (cBusy) {
+      cBusy.setAttribute('stroke-dasharray', `${lenBusy.toFixed(2)} ${circum}`);
+      cBusy.setAttribute('stroke-dashoffset', offBusy.toFixed(2));
+    }
+    if (cFail) {
+      cFail.setAttribute('stroke-dasharray', `${lenFail.toFixed(2)} ${circum}`);
+      cFail.setAttribute('stroke-dashoffset', offFail.toFixed(2));
+    }
+
+    // Donut Center Text
+    document.getElementById('statusNCount').textContent = `N = ${formatNum(data.totalCalls)}`;
+    document.getElementById('donutCenterTotal').textContent = formatNum(data.totalCalls);
+
+    // Breakdown text
+    document.getElementById('statusCountAnswered').textContent = `${formatNum(st.answered.count)} llamadas`;
+    document.getElementById('statusPctAnswered').textContent = `${st.answered.pct}%`;
+
+    document.getElementById('statusCountNoAnswer').textContent = `${formatNum(st.noAnswer.count)} llamadas`;
+    document.getElementById('statusPctNoAnswer').textContent = `${st.noAnswer.pct}%`;
+
+    document.getElementById('statusCountBusy').textContent = `${formatNum(st.busy.count)} llamadas`;
+    document.getElementById('statusPctBusy').textContent = `${st.busy.pct}%`;
+
+    document.getElementById('statusCountFailed').textContent = `${formatNum(st.failed.count)} llamadas`;
+    document.getElementById('statusPctFailed').textContent = `${st.failed.pct}%`;
+  }
+
+  // =================== REFRESH ANIMATION ===================
+  function refreshDataAnimation() {
+    const icon = document.getElementById('refreshIcon');
+    if (icon) {
+      icon.classList.add('animate-spin');
+      setTimeout(() => {
+        icon.classList.remove('animate-spin');
+      }, 700);
+    }
+    renderUI();
+  }
+
+  // =================== LIGHT / DARK THEME TOGGLE ===================
+  function toggleTheme() {
+    isDarkMode = !isDarkMode;
+    applyTheme();
+  }
+
+  function applyTheme() {
+    const html = document.documentElement;
+    const body = document.body;
+    const themeBtnText = document.getElementById('themeBtnText');
+    const themeIcon = document.getElementById('themeIcon');
+    const header = document.getElementById('mainHeader');
+    const dateBadge = document.getElementById('dateBadge');
+    const heroCard = document.getElementById('heroCard');
+    const cardInbound = document.getElementById('cardInbound');
+    const cardOutbound = document.getElementById('cardOutbound');
+    const chartSection = document.getElementById('chartSection');
+    const chartContainer = document.getElementById('chartContainer');
+    const operatorSection = document.getElementById('operatorSection');
+    const operatorListContainer = document.getElementById('operatorListContainer');
+    const statusSection = document.getElementById('statusSection');
+    const statusContainer = document.getElementById('statusContainer');
+    const trunksSection = document.getElementById('trunksSection');
+    const trunkBoxIn = document.getElementById('trunkBoxIn');
+    const trunkBoxOut = document.getElementById('trunkBoxOut');
+    const mainFooter = document.getElementById('mainFooter');
+    const donutBg = document.getElementById('donutBgCircle');
+
+    if (isDarkMode) {
+      // Switch back to Dark Theme
+      html.classList.add('dark');
+      body.className = "bg-[#0b1120] text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white pb-10 transition-colors duration-300 dark:bg-[#0b1120] dark:text-slate-100";
+      
+      themeBtnText.textContent = "Modo Claro";
+      themeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun w-3.5 h-3.5 text-amber-400"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>`;
+
+      header.className = "bg-[#111827]/95 dark:bg-[#111827]/95 backdrop-blur-md rounded-2xl px-6 py-4 border border-slate-800 dark:border-slate-800 shadow-xl shadow-black/40 mb-6 sticky top-4 z-40 transition-colors duration-300";
+      dateBadge.className = "flex items-center gap-2 text-xs bg-[#0d1322] border border-slate-800 text-slate-300 px-3.5 py-2 rounded-xl";
+      heroCard.className = "bg-gradient-to-r from-[#131d33] via-[#0f172a] to-[#111827] rounded-2xl p-6 lg:p-7 border border-slate-800 shadow-xl mb-6 relative overflow-hidden transition-all duration-300";
+      cardInbound.className = "bg-[#0b1222]/90 backdrop-blur p-4 lg:p-5 rounded-xl border border-emerald-500/25 flex flex-col justify-between hover:border-emerald-500/40 transition duration-300";
+      cardOutbound.className = "bg-[#0b1222]/90 backdrop-blur p-4 lg:p-5 rounded-xl border border-sky-500/25 flex flex-col justify-between hover:border-sky-500/40 transition duration-300";
+
+      [chartSection, operatorSection, statusSection, trunksSection].forEach(el => {
+        el.className = "bg-[#111827] rounded-2xl p-5 lg:p-6 border border-slate-800 shadow-xl flex flex-col justify-between transition-colors duration-300";
+      });
+      [chartContainer, operatorListContainer, statusContainer, trunkBoxIn, trunkBoxOut].forEach(el => {
+        el.className = el.className.replace(/bg-white|border-slate-200/g, '').trim();
+        if (!el.classList.contains('bg-[#0d1322]')) el.classList.add('bg-[#0d1322]');
+        if (!el.classList.contains('border-slate-800/80')) el.classList.add('border-slate-800/80');
+      });
+
+      if (donutBg) donutBg.setAttribute('stroke', '#1e293b');
+      document.querySelectorAll('.grid-line').forEach(l => l.setAttribute('stroke', '#1f293d'));
+      document.querySelectorAll('.baseline-line').forEach(l => l.setAttribute('stroke', '#334155'));
+      document.querySelectorAll('.card-title').forEach(t => t.className = "text-base font-bold text-white flex items-center gap-2 card-title");
+      document.querySelectorAll('.card-subtitle').forEach(s => s.className = "text-xs text-slate-400 mt-0.5 card-subtitle");
+      document.querySelectorAll('.status-card-item').forEach(c => {
+        c.className = c.className.replace(/bg-slate-100|hover:bg-slate-200/g, '').trim();
+        if (!c.classList.contains('bg-slate-900/90')) c.classList.add('bg-slate-900/90');
+      });
+      document.querySelectorAll('.status-item-name').forEach(n => {
+        n.classList.remove('text-slate-800');
+        n.classList.add('text-white');
+      });
+      document.querySelectorAll('.op-name').forEach(n => {
+        n.classList.remove('text-slate-800');
+        n.classList.add('text-slate-200');
+      });
+      document.querySelectorAll('.op-bar-bg').forEach(b => {
+        b.className = "w-full bg-slate-800/90 h-2.5 rounded-full overflow-hidden mt-1.5 op-bar-bg";
+      });
+      document.querySelectorAll('.trunk-name').forEach(n => {
+        n.className = "font-mono text-slate-300 font-medium truncate trunk-name";
+      });
+      mainFooter.className = "mt-8 pt-6 border-t border-slate-800/80 flex flex-col md:flex-row items-center justify-between text-slate-500 text-xs gap-3 pb-6 transition-colors duration-300";
+
+    } else {
+      // Switch to Clean Professional Light Theme
+      html.classList.remove('dark');
+      body.className = "bg-slate-100 text-slate-800 min-h-screen antialiased selection:bg-blue-600 selection:text-white pb-10 transition-colors duration-300";
+      
+      themeBtnText.textContent = "Modo Oscuro";
+      themeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon w-3.5 h-3.5 text-indigo-400"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>`;
+
+      header.className = "bg-white/95 backdrop-blur-md rounded-2xl px-6 py-4 border border-slate-200 shadow-xl shadow-slate-300/40 mb-6 sticky top-4 z-40 transition-colors duration-300";
+      dateBadge.className = "flex items-center gap-2 text-xs bg-slate-50 border border-slate-200 text-slate-700 px-3.5 py-2 rounded-xl";
+      heroCard.className = "bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-6 lg:p-7 border border-slate-300/40 shadow-xl mb-6 relative overflow-hidden transition-all duration-300";
+      cardInbound.className = "bg-slate-950/70 backdrop-blur p-4 lg:p-5 rounded-xl border border-emerald-500/35 flex flex-col justify-between hover:border-emerald-500/60 transition duration-300";
+      cardOutbound.className = "bg-slate-950/70 backdrop-blur p-4 lg:p-5 rounded-xl border border-sky-500/35 flex flex-col justify-between hover:border-sky-500/60 transition duration-300";
+
+      [chartSection, operatorSection, statusSection, trunksSection].forEach(el => {
+        el.className = "bg-white rounded-2xl p-5 lg:p-6 border border-slate-200 shadow-lg shadow-slate-200/50 flex flex-col justify-between transition-colors duration-300";
+      });
+      [chartContainer, operatorListContainer, statusContainer, trunkBoxIn, trunkBoxOut].forEach(el => {
+        el.className = el.className.replace(/bg-\[#0d1322\]|border-slate-800\/80/g, '').trim();
+        if (!el.classList.contains('bg-slate-50')) el.classList.add('bg-slate-50');
+        if (!el.classList.contains('border-slate-200')) el.classList.add('border-slate-200');
+      });
+
+      if (donutBg) donutBg.setAttribute('stroke', '#e2e8f0');
+      document.querySelectorAll('.grid-line').forEach(l => l.setAttribute('stroke', '#e2e8f0'));
+      document.querySelectorAll('.baseline-line').forEach(l => l.setAttribute('stroke', '#cbd5e1'));
+      document.querySelectorAll('.card-title').forEach(t => t.className = "text-base font-bold text-slate-900 flex items-center gap-2 card-title");
+      document.querySelectorAll('.card-subtitle').forEach(s => s.className = "text-xs text-slate-500 mt-0.5 card-subtitle");
+      document.querySelectorAll('.status-card-item').forEach(c => {
+        c.className = c.className.replace(/bg-slate-900\/90/g, '').trim();
+        if (!c.classList.contains('bg-white')) c.classList.add('bg-white');
+        if (!c.classList.contains('shadow-sm')) c.classList.add('shadow-sm');
+      });
+      document.querySelectorAll('.status-item-name').forEach(n => {
+        n.classList.remove('text-white');
+        n.classList.add('text-slate-800');
+      });
+      document.querySelectorAll('.op-name').forEach(n => {
+        n.classList.remove('text-slate-200');
+        n.classList.add('text-slate-800');
+      });
+      document.querySelectorAll('.op-bar-bg').forEach(b => {
+        b.className = "w-full bg-slate-200 h-2.5 rounded-full overflow-hidden mt-1.5 op-bar-bg";
+      });
+      document.querySelectorAll('.trunk-name').forEach(n => {
+        n.className = "font-mono text-slate-700 font-medium truncate trunk-name";
+      });
+      mainFooter.className = "mt-8 pt-6 border-t border-slate-300 flex flex-col md:flex-row items-center justify-between text-slate-500 text-xs gap-3 pb-6 transition-colors duration-300";
+    }
+
+    renderUI();
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  }
+
+  // Initial load
+  document.addEventListener("DOMContentLoaded", function () {
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+    renderUI();
+  });
+</script>
+</body></html>
